@@ -11,34 +11,47 @@ struct ContentView: View {
             HStack(spacing: 0) {
                 // Calendar View (40% of total width)
                 VStack {
-                    HStack {
-                        Button(action: { changeMonth(by: -1) }) {
-                            Image(systemName: "chevron.left")
-                        }
-                        .buttonStyle(PlainButtonStyle())
-                        
-                        Button(action: { goToToday() }) {
-                            Text("Today")
-                                .font(.headline)
-                        }
-                        .buttonStyle(PlainButtonStyle())
-                        
-                        Button(action: { changeMonth(by: 1) }) {
-                            Image(systemName: "chevron.right")
-                        }
-                        .buttonStyle(PlainButtonStyle())
+                    // Today Button above the grey box
+                    Button(action: { goToToday() }) {
+                        Text("Today")
+                            .font(.headline)
+                            .padding(.vertical, 5)
+                            .padding(.horizontal, 10)
+                            .background(Color.blue.opacity(0.1))
+                            .clipShape(RoundedRectangle(cornerRadius: 5))
                     }
+                    .buttonStyle(PlainButtonStyle())
                     .padding(.top, 10)
                     
-                    Text(monthYearFormatter.string(from: currentMonth))
-                        .font(.headline)
-                        .padding(.bottom, 5)
-                    
-                    CalendarView(selectedDate: $selectedDate, currentMonth: $currentMonth)
-                        .padding(.horizontal, 10)
+                    // Navigation and Calendar in the grey box
+                    VStack {
+                        HStack {
+                            Button(action: { changeMonth(by: -1) }) {
+                                Image(systemName: "chevron.left")
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                            
+                            Text("Navigate")
+                                .font(.headline)
+                            
+                            Button(action: { changeMonth(by: 1) }) {
+                                Image(systemName: "chevron.right")
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                        }
+                        .padding(.top, 10)
+                        
+                        Text(monthYearFormatter.string(from: currentMonth))
+                            .font(.headline)
+                            .padding(.bottom, 5)
+                        
+                        CalendarView(selectedDate: $selectedDate, currentMonth: $currentMonth, availableWidth: geometry.size.width * 0.4)
+                            .padding(.horizontal, 10)
+                            .padding(.bottom, 10)
+                    }
+                    .background(Color.gray.opacity(0.1))
                 }
                 .frame(width: geometry.size.width * 0.4) // 40% of total width
-                .background(Color.gray.opacity(0.1))
                 
                 // Text Editor (60% of total width)
                 VStack {
@@ -50,6 +63,7 @@ struct ContentView: View {
                     .padding()
                     
                     TextEditor(text: $textContent)
+                        .font(.system(size: 18)) // Increased font size (default is ~13, so +5 points)
                         .frame(minHeight: 400)
                         .padding()
                     
@@ -150,20 +164,24 @@ struct ContentView: View {
     }
 }
 
-// Updated Calendar View with Dynamic Month
+// Updated Calendar View with Dynamic Month and Fixed Alignment
 struct CalendarView: View {
     @Binding var selectedDate: Date
     @Binding var currentMonth: Date
+    let availableWidth: CGFloat // Pass the available width (40% of total window width)
     let calendar = Calendar.current
     
     var body: some View {
         VStack(spacing: 5) {
             let days = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
+            let cellWidth = (availableWidth - 20) / 7 // Subtract padding (10 on each side), divide by 7 columns
+            
             HStack(spacing: 0) {
                 ForEach(days, id: \.self) { day in
                     Text(day)
                         .font(.caption)
-                        .frame(maxWidth: .infinity, minHeight: 20)
+                        .frame(width: cellWidth, height: cellWidth) // Use dynamic cell width
+                        .multilineTextAlignment(.center)
                 }
             }
             
@@ -176,22 +194,27 @@ struct CalendarView: View {
                 HStack(spacing: 0) {
                     ForEach(0..<7) { index in
                         if let day = week[index] {
-                            Text("\(day)")
-                                .font(.caption)
-                                .frame(maxWidth: .infinity, minHeight: 20)
-                                .background(isSelected(day: day) ? Color.blue.opacity(0.3) : Color.clear)
-                                .clipShape(Circle())
-                                .onTapGesture {
-                                    // Create a new date for the tapped day in the current month
-                                    var components = calendar.dateComponents([.year, .month], from: currentMonth)
-                                    components.day = day
-                                    if let newDate = calendar.date(from: components) {
-                                        selectedDate = newDate
-                                    }
+                            ZStack {
+                                Circle()
+                                    .fill(isSelected(day: day) ? Color.blue.opacity(0.3) : Color.clear)
+                                    .frame(width: cellWidth * 0.8, height: cellWidth * 0.8) // Scale circle to fit cell
+                                
+                                Text("\(day)")
+                                    .font(.caption)
+                                    .foregroundColor(.black)
+                            }
+                            .frame(width: cellWidth, height: cellWidth) // Use dynamic cell width
+                            .contentShape(Circle())
+                            .onTapGesture {
+                                var components = calendar.dateComponents([.year, .month], from: currentMonth)
+                                components.day = day
+                                if let newDate = calendar.date(from: components) {
+                                    selectedDate = newDate
                                 }
+                            }
                         } else {
                             Text("")
-                                .frame(maxWidth: .infinity, minHeight: 20)
+                                .frame(width: cellWidth, height: cellWidth) // Use dynamic cell width for empty cells
                         }
                     }
                 }
