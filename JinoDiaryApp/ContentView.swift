@@ -17,8 +17,11 @@ struct ContentView: View {
                         }
                         .buttonStyle(PlainButtonStyle())
                         
-                        Text(monthYearFormatter.string(from: currentMonth))
-                            .font(.headline)
+                        Button(action: { goToToday() }) {
+                            Text("Today")
+                                .font(.headline)
+                        }
+                        .buttonStyle(PlainButtonStyle())
                         
                         Button(action: { changeMonth(by: 1) }) {
                             Image(systemName: "chevron.right")
@@ -26,6 +29,10 @@ struct ContentView: View {
                         .buttonStyle(PlainButtonStyle())
                     }
                     .padding(.top, 10)
+                    
+                    Text(monthYearFormatter.string(from: currentMonth))
+                        .font(.headline)
+                        .padding(.bottom, 5)
                     
                     CalendarView(selectedDate: $selectedDate, currentMonth: $currentMonth)
                         .padding(.horizontal, 10)
@@ -94,6 +101,12 @@ struct ContentView: View {
         }
     }
     
+    private func goToToday() {
+        let today = Date()
+        currentMonth = today
+        selectedDate = today
+    }
+    
     private func formattedDateString(from date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "EEEE, dd MMMM yyyy"
@@ -155,7 +168,8 @@ struct CalendarView: View {
             }
             
             let daysInMonth = calendar.range(of: .day, in: .month, for: currentMonth)!
-            let firstWeekday = calendar.component(.weekday, from: calendar.date(from: calendar.dateComponents([.year, .month], from: currentMonth))!) - 1
+            let firstDayOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: currentMonth))!
+            let firstWeekday = calendar.component(.weekday, from: firstDayOfMonth) - 1 // 0 (Sunday) to 6 (Saturday)
             let weeks = generateWeeks(firstWeekday: firstWeekday, days: daysInMonth.count)
             
             ForEach(weeks, id: \.self) { week in
@@ -168,7 +182,10 @@ struct CalendarView: View {
                                 .background(isSelected(day: day) ? Color.blue.opacity(0.3) : Color.clear)
                                 .clipShape(Circle())
                                 .onTapGesture {
-                                    if let newDate = calendar.date(bySetting: .day, value: day, of: currentMonth) {
+                                    // Create a new date for the tapped day in the current month
+                                    var components = calendar.dateComponents([.year, .month], from: currentMonth)
+                                    components.day = day
+                                    if let newDate = calendar.date(from: components) {
                                         selectedDate = newDate
                                     }
                                 }
@@ -206,8 +223,12 @@ struct CalendarView: View {
     }
     
     private func isSelected(day: Int) -> Bool {
-        let components = calendar.dateComponents([.day], from: selectedDate)
-        return components.day == day && calendar.isDate(selectedDate, equalTo: currentMonth, toGranularity: .month)
+        let selectedComponents = calendar.dateComponents([.day, .month, .year], from: selectedDate)
+        let currentMonthComponents = calendar.dateComponents([.month, .year], from: currentMonth)
+        
+        return selectedComponents.day == day &&
+               selectedComponents.month == currentMonthComponents.month &&
+               selectedComponents.year == currentMonthComponents.year
     }
 }
 
