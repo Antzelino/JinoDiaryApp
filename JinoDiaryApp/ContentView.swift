@@ -239,7 +239,7 @@ struct CalendarView: View {
                         if let day = week[index] {
                             ZStack {
                                 Circle()
-                                    .fill(isSelected(day: day) ? Color.blue.opacity(0.3) : Color.clear)
+                                    .fill(isSelected(day: day) ? Color.gray.opacity(0.2) : Color.clear) // Changed to lighter grey
                                     .frame(width: cellWidth * 0.8, height: cellWidth * 0.8)
                                 
                                 Text("\(day)")
