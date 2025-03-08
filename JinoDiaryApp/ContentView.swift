@@ -7,10 +7,14 @@ struct ContentView: View {
     @State private var dateTextMap: [String: String] = [:] // Dictionary to store text per date
     let calendar = Calendar.current
     
+    // Golden ratio proportions
+    let goldenRatio: CGFloat = 0.6180339887 // 1/phi for the right side
+    var leftSideRatio: CGFloat { 1 - goldenRatio } // Remaining for the left side
+    
     var body: some View {
         GeometryReader { geometry in
             HStack(spacing: 0) {
-                // Calendar View (40% of total width)
+                // Calendar View (left side, 1 - goldenRatio)
                 VStack {
                     // Today Button above the grey box
                     Button(action: { goToToday() }) {
@@ -48,15 +52,15 @@ struct ContentView: View {
                             .font(.system(size: 20))
                             .padding(.bottom, 5)
                         
-                        CalendarView(selectedDate: $selectedDate, currentMonth: $currentMonth, availableWidth: geometry.size.width * 0.4, dateTextMap: $dateTextMap, textContent: $textContent)
+                        CalendarView(selectedDate: $selectedDate, currentMonth: $currentMonth, availableWidth: geometry.size.width * leftSideRatio, dateTextMap: $dateTextMap, textContent: $textContent)
                             .padding(.horizontal, 10)
                             .padding(.bottom, 10)
                     }
                     .background(Color.gray.opacity(0.1))
                 }
-                .frame(width: geometry.size.width * 0.4) // 40% of total width
+                .frame(width: geometry.size.width * leftSideRatio) // Use golden ratio for left side
                 
-                // Text Editor (60% of total width)
+                // Text Editor (right side, goldenRatio)
                 VStack {
                     HStack {
                         Text(formattedDateString(from: selectedDate))
@@ -100,7 +104,7 @@ struct ContentView: View {
                     }
                     .padding()
                 }
-                .frame(width: geometry.size.width * 0.6) // 60% of total width
+                .frame(width: geometry.size.width * goldenRatio) // Use golden ratio for right side
             }
         }
         .frame(minWidth: 600, minHeight: 500)
@@ -239,7 +243,7 @@ struct CalendarView: View {
                         if let day = week[index] {
                             ZStack {
                                 Circle()
-                                    .fill(isSelected(day: day) ? Color.gray.opacity(0.2) : Color.clear) // Changed to lighter grey
+                                    .fill(isSelected(day: day) ? Color.gray.opacity(0.2) : Color.clear)
                                     .frame(width: cellWidth * 0.8, height: cellWidth * 0.8)
                                 
                                 Text("\(day)")
