@@ -134,7 +134,11 @@ struct ContentView: View {
     
     private func saveTextForDate() {
         let dateKey = dateKeyForDate(selectedDate)
-        dateTextMap[dateKey] = textContent
+        if textContent.isEmpty {
+            dateTextMap.removeValue(forKey: dateKey) // Remove entry if text is empty
+        } else {
+            dateTextMap[dateKey] = textContent
+        }
         saveToUserDefaults()
     }
     
@@ -202,7 +206,6 @@ struct ContentView: View {
     }
 }
 
-// Updated Calendar View with Dynamic Month and Fixed Alignment
 struct CalendarView: View {
     @Binding var selectedDate: Date
     @Binding var currentMonth: Date
@@ -241,7 +244,8 @@ struct CalendarView: View {
                                 
                                 Text("\(day)")
                                     .font(.system(size: 15))
-                                    .foregroundColor(.black)
+                                    .foregroundColor(hasContent(day: day) ? .blue : .black) // Blue if has content, black if not
+                                    .bold(hasContent(day: day)) // Bold if has content
                             }
                             .frame(width: cellWidth, height: cellWidth)
                             .contentShape(Circle())
@@ -293,6 +297,18 @@ struct CalendarView: View {
         return selectedComponents.day == day &&
                selectedComponents.month == currentMonthComponents.month &&
                selectedComponents.year == currentMonthComponents.year
+    }
+    
+    private func hasContent(day: Int) -> Bool {
+        var components = calendar.dateComponents([.year, .month], from: currentMonth)
+        components.day = day
+        if let date = calendar.date(from: components) {
+            let dateKey = dateKeyForDate(date)
+            if let content = dateTextMap[dateKey], !content.isEmpty {
+                return true
+            }
+        }
+        return false
     }
     
     private func updateTextContent() {
