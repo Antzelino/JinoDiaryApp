@@ -4,6 +4,7 @@ struct ContentView: View {
     @State private var textContent: String = ""
     @State private var selectedDate: Date = Date()
     @State private var currentMonth: Date = Date()
+    @State private var dateTextMap: [String: String] = [:] // Dictionary to store text per date
     let calendar = Calendar.current
     
     var body: some View {
@@ -14,7 +15,7 @@ struct ContentView: View {
                     // Today Button above the grey box
                     Button(action: { goToToday() }) {
                         Text("Today")
-                            .font(.system(size: 20)) // Increased from ~17 (.headline) to 20
+                            .font(.system(size: 20))
                             .padding(.vertical, 5)
                             .padding(.horizontal, 10)
                             .background(Color.blue.opacity(0.1))
@@ -28,26 +29,26 @@ struct ContentView: View {
                         HStack {
                             Button(action: { changeMonth(by: -1) }) {
                                 Image(systemName: "chevron.left")
-                                    .font(.system(size: 20)) // Match font size for consistency
+                                    .font(.system(size: 20))
                             }
                             .buttonStyle(PlainButtonStyle())
                             
                             Text("Navigate")
-                                .font(.system(size: 20)) // Increased from ~17 (.headline) to 20
+                                .font(.system(size: 20))
                             
                             Button(action: { changeMonth(by: 1) }) {
                                 Image(systemName: "chevron.right")
-                                    .font(.system(size: 20)) // Match font size for consistency
+                                    .font(.system(size: 20))
                             }
                             .buttonStyle(PlainButtonStyle())
                         }
                         .padding(.top, 10)
                         
                         Text(monthYearFormatter.string(from: currentMonth))
-                            .font(.system(size: 20)) // Increased from ~17 (.headline) to 20
+                            .font(.system(size: 20))
                             .padding(.bottom, 5)
                         
-                        CalendarView(selectedDate: $selectedDate, currentMonth: $currentMonth, availableWidth: geometry.size.width * 0.4)
+                        CalendarView(selectedDate: $selectedDate, currentMonth: $currentMonth, availableWidth: geometry.size.width * 0.4, dateTextMap: $dateTextMap, textContent: $textContent)
                             .padding(.horizontal, 10)
                             .padding(.bottom, 10)
                     }
@@ -65,9 +66,12 @@ struct ContentView: View {
                     .padding()
                     
                     TextEditor(text: $textContent)
-                        .font(.system(size: 18)) // Unchanged (previously set to 18)
+                        .font(.system(size: 18))
                         .frame(minHeight: 400)
                         .padding()
+                        .onChange(of: textContent) { newText in
+                            saveTextForDate()
+                        }
                     
                     HStack {
                         Button(action: { toggleBold() }) {
@@ -100,19 +104,18 @@ struct ContentView: View {
             }
         }
         .frame(minWidth: 600, minHeight: 500)
+        .onAppear {
+            loadSavedData()
+        }
     }
     
     private func changeMonth(by value: Int) {
         if let newMonth = calendar.date(byAdding: .month, value: value, to: currentMonth) {
             currentMonth = newMonth
-            // Ensure selectedDate stays within the new month if possible
-            let components = calendar.dateComponents([.year, .month], from: currentMonth)
-            if let firstDayOfMonth = calendar.date(from: components) {
-                let range = calendar.range(of: .day, in: .month, for: firstDayOfMonth)!
-                let day = min(calendar.component(.day, from: selectedDate), range.count)
-                if let newSelectedDate = calendar.date(bySetting: .day, value: day, of: currentMonth) {
-                    selectedDate = newSelectedDate
-                }
+            // Select the first day of the new month
+            if let firstDayOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: currentMonth)) {
+                selectedDate = firstDayOfMonth
+                updateTextContent()
             }
         }
     }
@@ -121,6 +124,24 @@ struct ContentView: View {
         let today = Date()
         currentMonth = today
         selectedDate = today
+        updateTextContent()
+    }
+    
+    private func updateTextContent() {
+        let dateKey = dateKeyForDate(selectedDate)
+        textContent = dateTextMap[dateKey] ?? ""
+    }
+    
+    private func saveTextForDate() {
+        let dateKey = dateKeyForDate(selectedDate)
+        dateTextMap[dateKey] = textContent
+        saveToUserDefaults()
+    }
+    
+    private func dateKeyForDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: date)
     }
     
     private func formattedDateString(from date: Date) -> String {
@@ -133,6 +154,21 @@ struct ContentView: View {
         let formatter = DateFormatter()
         formatter.dateFormat = "MMMM yyyy"
         return formatter
+    }
+    
+    // Persistence
+    private func saveToUserDefaults() {
+        if let encodedData = try? JSONEncoder().encode(dateTextMap) {
+            UserDefaults.standard.set(encodedData, forKey: "dateTextMap")
+        }
+    }
+    
+    private func loadSavedData() {
+        if let data = UserDefaults.standard.data(forKey: "dateTextMap"),
+           let savedMap = try? JSONDecoder().decode([String: String].self, from: data) {
+            dateTextMap = savedMap
+            updateTextContent()
+        }
     }
     
     // Formatting Functions
@@ -170,7 +206,9 @@ struct ContentView: View {
 struct CalendarView: View {
     @Binding var selectedDate: Date
     @Binding var currentMonth: Date
-    let availableWidth: CGFloat // Pass the available width (40% of total window width)
+    let availableWidth: CGFloat
+    @Binding var dateTextMap: [String: String]
+    @Binding var textContent: String
     let calendar = Calendar.current
     
     var body: some View {
@@ -181,7 +219,7 @@ struct CalendarView: View {
             HStack(spacing: 0) {
                 ForEach(days, id: \.self) { day in
                     Text(day)
-                        .font(.system(size: 15)) // Increased from ~12 (.caption) to 15
+                        .font(.system(size: 15))
                         .frame(width: cellWidth, height: cellWidth)
                         .multilineTextAlignment(.center)
                 }
@@ -189,7 +227,7 @@ struct CalendarView: View {
             
             let daysInMonth = calendar.range(of: .day, in: .month, for: currentMonth)!
             let firstDayOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: currentMonth))!
-            let firstWeekday = calendar.component(.weekday, from: firstDayOfMonth) - 1 // 0 (Sunday) to 6 (Saturday)
+            let firstWeekday = calendar.component(.weekday, from: firstDayOfMonth) - 1
             let weeks = generateWeeks(firstWeekday: firstWeekday, days: daysInMonth.count)
             
             ForEach(weeks, id: \.self) { week in
@@ -202,7 +240,7 @@ struct CalendarView: View {
                                     .frame(width: cellWidth * 0.8, height: cellWidth * 0.8)
                                 
                                 Text("\(day)")
-                                    .font(.system(size: 15)) // Increased from ~12 (.caption) to 15
+                                    .font(.system(size: 15))
                                     .foregroundColor(.black)
                             }
                             .frame(width: cellWidth, height: cellWidth)
@@ -212,6 +250,7 @@ struct CalendarView: View {
                                 components.day = day
                                 if let newDate = calendar.date(from: components) {
                                     selectedDate = newDate
+                                    updateTextContent()
                                 }
                             }
                         } else {
@@ -254,6 +293,17 @@ struct CalendarView: View {
         return selectedComponents.day == day &&
                selectedComponents.month == currentMonthComponents.month &&
                selectedComponents.year == currentMonthComponents.year
+    }
+    
+    private func updateTextContent() {
+        let dateKey = dateKeyForDate(selectedDate)
+        textContent = dateTextMap[dateKey] ?? ""
+    }
+    
+    private func dateKeyForDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: date)
     }
 }
 
