@@ -14,7 +14,7 @@ struct ContentView: View {
                     // Today Button above the grey box
                     Button(action: { goToToday() }) {
                         Text("Today")
-                            .font(.headline)
+                            .font(.system(size: 20)) // Increased from ~17 (.headline) to 20
                             .padding(.vertical, 5)
                             .padding(.horizontal, 10)
                             .background(Color.blue.opacity(0.1))
@@ -28,21 +28,23 @@ struct ContentView: View {
                         HStack {
                             Button(action: { changeMonth(by: -1) }) {
                                 Image(systemName: "chevron.left")
+                                    .font(.system(size: 20)) // Match font size for consistency
                             }
                             .buttonStyle(PlainButtonStyle())
                             
                             Text("Navigate")
-                                .font(.headline)
+                                .font(.system(size: 20)) // Increased from ~17 (.headline) to 20
                             
                             Button(action: { changeMonth(by: 1) }) {
                                 Image(systemName: "chevron.right")
+                                    .font(.system(size: 20)) // Match font size for consistency
                             }
                             .buttonStyle(PlainButtonStyle())
                         }
                         .padding(.top, 10)
                         
                         Text(monthYearFormatter.string(from: currentMonth))
-                            .font(.headline)
+                            .font(.system(size: 20)) // Increased from ~17 (.headline) to 20
                             .padding(.bottom, 5)
                         
                         CalendarView(selectedDate: $selectedDate, currentMonth: $currentMonth, availableWidth: geometry.size.width * 0.4)
@@ -63,7 +65,7 @@ struct ContentView: View {
                     .padding()
                     
                     TextEditor(text: $textContent)
-                        .font(.system(size: 18)) // Increased font size (default is ~13, so +5 points)
+                        .font(.system(size: 18)) // Unchanged (previously set to 18)
                         .frame(minHeight: 400)
                         .padding()
                     
@@ -179,8 +181,8 @@ struct CalendarView: View {
             HStack(spacing: 0) {
                 ForEach(days, id: \.self) { day in
                     Text(day)
-                        .font(.caption)
-                        .frame(width: cellWidth, height: cellWidth) // Use dynamic cell width
+                        .font(.system(size: 15)) // Increased from ~12 (.caption) to 15
+                        .frame(width: cellWidth, height: cellWidth)
                         .multilineTextAlignment(.center)
                 }
             }
@@ -197,13 +199,13 @@ struct CalendarView: View {
                             ZStack {
                                 Circle()
                                     .fill(isSelected(day: day) ? Color.blue.opacity(0.3) : Color.clear)
-                                    .frame(width: cellWidth * 0.8, height: cellWidth * 0.8) // Scale circle to fit cell
+                                    .frame(width: cellWidth * 0.8, height: cellWidth * 0.8)
                                 
                                 Text("\(day)")
-                                    .font(.caption)
+                                    .font(.system(size: 15)) // Increased from ~12 (.caption) to 15
                                     .foregroundColor(.black)
                             }
-                            .frame(width: cellWidth, height: cellWidth) // Use dynamic cell width
+                            .frame(width: cellWidth, height: cellWidth)
                             .contentShape(Circle())
                             .onTapGesture {
                                 var components = calendar.dateComponents([.year, .month], from: currentMonth)
@@ -214,7 +216,7 @@ struct CalendarView: View {
                             }
                         } else {
                             Text("")
-                                .frame(width: cellWidth, height: cellWidth) // Use dynamic cell width for empty cells
+                                .frame(width: cellWidth, height: cellWidth)
                         }
                     }
                 }
