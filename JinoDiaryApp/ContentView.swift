@@ -236,7 +236,7 @@ struct CalendarView: View {
             
             let daysInMonth = calendar.range(of: .day, in: .month, for: currentMonth)!
             let firstDayOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: currentMonth))!
-            let firstWeekday = calendar.component(.weekday, from: firstDayOfMonth) - 1
+            let firstWeekday = (calendar.component(.weekday, from: firstDayOfMonth) - 2 + 7) % 7 // Adjusted for Monday start
             let weeks = generateWeeks(firstWeekday: firstWeekday, days: daysInMonth.count)
             
             ForEach(weeks, id: \.self) { week in
