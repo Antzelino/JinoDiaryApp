@@ -242,10 +242,19 @@ struct CalendarView: View {
                     ForEach(0..<7) { index in
                         if let day = week[index] {
                             ZStack {
+                                // Filled highlight for selected day
                                 Circle()
                                     .fill(isSelected(day: day) ? Color.gray.opacity(0.2) : Color.clear)
                                     .frame(width: cellWidth * 0.8, height: cellWidth * 0.8)
                                 
+                                // Stroke highlight for today
+                                if isToday(day: day) {
+                                    Circle()
+                                        .stroke(Color.blue.opacity(0.5), lineWidth: 3) // Light blue stroke, 3px thick
+                                        .frame(width: cellWidth * 0.8, height: cellWidth * 0.8)
+                                }
+                                
+                                // Day number
                                 Text("\(day)")
                                     .font(.system(size: 15))
                                     .foregroundColor(hasContent(day: day) ? .blue : .black) // Blue if has content, black if not
@@ -300,6 +309,16 @@ struct CalendarView: View {
         return selectedComponents.day == day &&
                selectedComponents.month == currentMonthComponents.month &&
                selectedComponents.year == currentMonthComponents.year
+    }
+    
+    private func isToday(day: Int) -> Bool {
+        let today = Date()
+        let todayComponents = calendar.dateComponents([.day, .month, .year], from: today)
+        let currentMonthComponents = calendar.dateComponents([.month, .year], from: currentMonth)
+        
+        return todayComponents.day == day &&
+               todayComponents.month == currentMonthComponents.month &&
+               todayComponents.year == currentMonthComponents.year
     }
     
     private func hasContent(day: Int) -> Bool {
