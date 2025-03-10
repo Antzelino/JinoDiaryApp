@@ -73,7 +73,7 @@ struct ContentView: View {
                         .font(.system(size: 18))
                         .frame(minHeight: 400)
                         .padding()
-                        .onChange(of: textContent) { newText in
+                        .onChange(of: textContent) {
                             saveTextForDate()
                         }
                     
@@ -277,7 +277,6 @@ struct CalendarView: View {
         var dayCount = 1
         
         for i in 0..<42 { // Max 6 weeks (42 days)
-            let weekIndex = i / 7
             let dayIndex = i % 7
             
             if i >= firstWeekday && dayCount <= days {
