@@ -73,7 +73,7 @@ struct ContentView: View {
                         .font(.system(size: 18))
                         .frame(minHeight: 400)
                         .padding()
-                        .onChange(of: textContent) {
+                        .onChange(of: textContent) { oldValue, newValue in
                             saveTextForDate()
                         }
                     
@@ -218,6 +218,8 @@ struct CalendarView: View {
     @Binding var textContent: String
     let calendar = Calendar.current
     
+    @State private var hoveredDay: Int? = nil // Track the hovered day
+    
     var body: some View {
         VStack(spacing: 5) {
             let days = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
@@ -242,16 +244,23 @@ struct CalendarView: View {
                     ForEach(0..<7) { index in
                         if let day = week[index] {
                             ZStack {
+                                // Hover highlight
+                                if hoveredDay == day {
+                                    Circle()
+                                        .fill(Color.gray.opacity(0.1)) // Subtle grey hover highlight
+                                        .frame(width: cellWidth * 0.7, height: cellWidth * 0.7) // Match size with other highlights
+                                }
+                                
                                 // Filled highlight for selected day
                                 Circle()
                                     .fill(isSelected(day: day) ? Color.gray.opacity(0.2) : Color.clear)
-                                    .frame(width: cellWidth * 0.8, height: cellWidth * 0.8)
+                                    .frame(width: cellWidth * 0.7, height: cellWidth * 0.7) // Slightly smaller
                                 
                                 // Stroke highlight for today
                                 if isToday(day: day) {
                                     Circle()
                                         .stroke(Color.blue.opacity(0.5), lineWidth: 3) // Light blue stroke, 3px thick
-                                        .frame(width: cellWidth * 0.8, height: cellWidth * 0.8)
+                                        .frame(width: cellWidth * 0.7, height: cellWidth * 0.7) // Slightly smaller
                                 }
                                 
                                 // Day number
@@ -261,7 +270,7 @@ struct CalendarView: View {
                                     .bold(hasContent(day: day)) // Bold if has content
                             }
                             .frame(width: cellWidth, height: cellWidth)
-                            .contentShape(Circle())
+                            .contentShape(Rectangle()) // Hitbox is now a square matching the cell
                             .onTapGesture {
                                 var components = calendar.dateComponents([.year, .month], from: currentMonth)
                                 components.day = day
@@ -269,6 +278,9 @@ struct CalendarView: View {
                                     selectedDate = newDate
                                     updateTextContent()
                                 }
+                            }
+                            .onHover { isHovering in
+                                hoveredDay = isHovering ? day : nil
                             }
                         } else {
                             Text("")
