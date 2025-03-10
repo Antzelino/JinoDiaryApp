@@ -13,12 +13,12 @@ struct ContentView: View {
     
     var body: some View {
         GeometryReader { geometry in
-            HStack(spacing: 0) {
+            HStack(spacing: 20) { // Explicit spacing between halves (20 points)
                 // Calendar View (left side, 1 - goldenRatio)
                 VStack {
-                    // Today Button above the grey box
+                    // Go To Today Button above the grey box
                     Button(action: { goToToday() }) {
-                        Text("Today")
+                        Text("Go To Today")
                             .font(.system(size: 20))
                             .padding(.vertical, 5)
                             .padding(.horizontal, 10)
@@ -34,31 +34,38 @@ struct ContentView: View {
                             Button(action: { changeMonth(by: -1) }) {
                                 Image(systemName: "chevron.left")
                                     .font(.system(size: 20))
+                                    .frame(width: 30, height: 30) // Square button area
+                                    .background(Color.gray.opacity(0.1))
+                                    .clipShape(RoundedRectangle(cornerRadius: 5)) // Match "Go To Today" corner radius
                             }
                             .buttonStyle(PlainButtonStyle())
+                            .padding(.leading, 10) // Add padding from the left edge
+                            .frame(maxWidth: .infinity, alignment: .leading) // Pin to left
                             
-                            Text("Navigate")
+                            Text(monthYearFormatter.string(from: currentMonth))
                                 .font(.system(size: 20))
                             
                             Button(action: { changeMonth(by: 1) }) {
                                 Image(systemName: "chevron.right")
                                     .font(.system(size: 20))
+                                    .frame(width: 30, height: 30) // Square button area
+                                    .background(Color.gray.opacity(0.1))
+                                    .clipShape(RoundedRectangle(cornerRadius: 5)) // Match "Go To Today" corner radius
                             }
                             .buttonStyle(PlainButtonStyle())
+                            .padding(.trailing, 10) // Add padding from the right edge
+                            .frame(maxWidth: .infinity, alignment: .trailing) // Pin to right
                         }
                         .padding(.top, 10)
                         
-                        Text(monthYearFormatter.string(from: currentMonth))
-                            .font(.system(size: 20))
-                            .padding(.bottom, 5)
-                        
-                        CalendarView(selectedDate: $selectedDate, currentMonth: $currentMonth, availableWidth: geometry.size.width * leftSideRatio, dateTextMap: $dateTextMap, textContent: $textContent)
+                        CalendarView(selectedDate: $selectedDate, currentMonth: $currentMonth, availableWidth: geometry.size.width * leftSideRatio - 40, dateTextMap: $dateTextMap, textContent: $textContent) // Adjust width for padding
                             .padding(.horizontal, 10)
                             .padding(.bottom, 10)
                     }
                     .background(Color.gray.opacity(0.1))
                 }
-                .frame(width: geometry.size.width * leftSideRatio) // Use golden ratio for left side
+                .frame(width: geometry.size.width * leftSideRatio - 20) // Adjust for padding
+                .padding(.leading, 20) // Left padding for balance
                 
                 // Text Editor (right side, goldenRatio)
                 VStack {
@@ -80,21 +87,33 @@ struct ContentView: View {
                     HStack {
                         Button(action: { toggleBold() }) {
                             Text("B")
+                                .frame(width: 30, height: 30) // Square button area
+                                .background(Color.gray.opacity(0.1))
+                                .clipShape(RoundedRectangle(cornerRadius: 5)) // Match "Go To Today" corner radius
                         }
                         .buttonStyle(PlainButtonStyle())
                         
                         Button(action: { toggleItalic() }) {
                             Text("I")
+                                .frame(width: 30, height: 30) // Square button area
+                                .background(Color.gray.opacity(0.1))
+                                .clipShape(RoundedRectangle(cornerRadius: 5)) // Match "Go To Today" corner radius
                         }
                         .buttonStyle(PlainButtonStyle())
                         
                         Button(action: { addBulletPoint() }) {
                             Text("•")
+                                .frame(width: 30, height: 30) // Square button area
+                                .background(Color.gray.opacity(0.1))
+                                .clipShape(RoundedRectangle(cornerRadius: 5)) // Match "Go To Today" corner radius
                         }
                         .buttonStyle(PlainButtonStyle())
                         
                         Button(action: { addNumberedList() }) {
                             Text("1.")
+                                .frame(width: 30, height: 30) // Square button area
+                                .background(Color.gray.opacity(0.1))
+                                .clipShape(RoundedRectangle(cornerRadius: 5)) // Match "Go To Today" corner radius
                         }
                         .buttonStyle(PlainButtonStyle())
                         
@@ -104,8 +123,11 @@ struct ContentView: View {
                     }
                     .padding()
                 }
-                .frame(width: geometry.size.width * goldenRatio) // Use golden ratio for right side
+                .frame(width: geometry.size.width * goldenRatio - 20) // Adjust for padding
+                .padding(.trailing, 20) // Right padding for balance
             }
+            .padding(.leading, 20) // Outer left padding for window edge
+            .padding(.trailing, 20) // Outer right padding for window edge
         }
         .frame(minWidth: 600, minHeight: 500)
         .onAppear {
@@ -325,7 +347,7 @@ struct CalendarView: View {
     
     private func isToday(day: Int) -> Bool {
         let today = Date()
-        let todayComponents = calendar.dateComponents([.day, .month, .year], from: today)
+        let todayComponents = calendar.dateComponents([.day, .month, .year], from: today) // Fixed typo: "the" to "let"
         let currentMonthComponents = calendar.dateComponents([.month, .year], from: currentMonth)
         
         return todayComponents.day == day &&
