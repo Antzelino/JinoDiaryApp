@@ -36,7 +36,7 @@ struct ContentView: View {
                                     .font(.system(size: 20))
                                     .frame(width: 30, height: 30) // Square button area
                                     .background(Color.gray.opacity(0.1))
-                                    .clipShape(RoundedRectangle(cornerRadius: 5)) // Match "Go To Today" corner radius
+                                    .clipShape(RoundedRectangle(cornerRadius: 5))
                             }
                             .buttonStyle(PlainButtonStyle())
                             .padding(.leading, 10) // Add padding from the left edge
@@ -50,7 +50,7 @@ struct ContentView: View {
                                     .font(.system(size: 20))
                                     .frame(width: 30, height: 30) // Square button area
                                     .background(Color.gray.opacity(0.1))
-                                    .clipShape(RoundedRectangle(cornerRadius: 5)) // Match "Go To Today" corner radius
+                                    .clipShape(RoundedRectangle(cornerRadius: 5))
                             }
                             .buttonStyle(PlainButtonStyle())
                             .padding(.trailing, 10) // Add padding from the right edge
@@ -89,7 +89,7 @@ struct ContentView: View {
                             Text("B")
                                 .frame(width: 30, height: 30) // Square button area
                                 .background(Color.gray.opacity(0.1))
-                                .clipShape(RoundedRectangle(cornerRadius: 5)) // Match "Go To Today" corner radius
+                                .clipShape(RoundedRectangle(cornerRadius: 5))
                         }
                         .buttonStyle(PlainButtonStyle())
                         
@@ -97,7 +97,7 @@ struct ContentView: View {
                             Text("I")
                                 .frame(width: 30, height: 30) // Square button area
                                 .background(Color.gray.opacity(0.1))
-                                .clipShape(RoundedRectangle(cornerRadius: 5)) // Match "Go To Today" corner radius
+                                .clipShape(RoundedRectangle(cornerRadius: 5))
                         }
                         .buttonStyle(PlainButtonStyle())
                         
@@ -105,7 +105,7 @@ struct ContentView: View {
                             Text("•")
                                 .frame(width: 30, height: 30) // Square button area
                                 .background(Color.gray.opacity(0.1))
-                                .clipShape(RoundedRectangle(cornerRadius: 5)) // Match "Go To Today" corner radius
+                                .clipShape(RoundedRectangle(cornerRadius: 5))
                         }
                         .buttonStyle(PlainButtonStyle())
                         
@@ -113,15 +113,17 @@ struct ContentView: View {
                             Text("1.")
                                 .frame(width: 30, height: 30) // Square button area
                                 .background(Color.gray.opacity(0.1))
-                                .clipShape(RoundedRectangle(cornerRadius: 5)) // Match "Go To Today" corner radius
+                                .clipShape(RoundedRectangle(cornerRadius: 5))
                         }
                         .buttonStyle(PlainButtonStyle())
                         
                         Spacer()
                         Text("\(textContent.count)")
                             .foregroundColor(.gray)
+                            .padding(.trailing, 10) // Add padding to prevent clipping
                     }
-                    .padding()
+                    .padding(.leading, 10) // Match internal padding for balance
+                    .padding(.trailing, 10) // Ensure space for character count
                 }
                 .frame(width: geometry.size.width * goldenRatio - 20) // Adjust for padding
                 .padding(.trailing, 20) // Right padding for balance
@@ -347,7 +349,7 @@ struct CalendarView: View {
     
     private func isToday(day: Int) -> Bool {
         let today = Date()
-        let todayComponents = calendar.dateComponents([.day, .month, .year], from: today) // Fixed typo: "the" to "let"
+        let todayComponents = calendar.dateComponents([.day, .month, .year], from: today)
         let currentMonthComponents = calendar.dateComponents([.month, .year], from: currentMonth)
         
         return todayComponents.day == day &&
