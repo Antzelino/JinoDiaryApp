@@ -1,4 +1,4 @@
-The whole code is basically just in the file `JinoDiaryApp/ContentView.swift` (also you need `JinoDiaryApp/JinoDiaryAppApp.swift`.
+The whole code is basically just in the file `JinoDiaryApp/ContentView.swift` (also you need `JinoDiaryApp/JinoDiaryAppApp.swift`).
 
 But I also have icons in this project, for the macOS app. If you can run that, you're good to go.
 
