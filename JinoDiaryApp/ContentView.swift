@@ -1,5 +1,38 @@
 import SwiftUI
 
+// Dedicated struct for date formatting utilities
+struct DateUtils {
+    static let monthYearFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMMM yyyy"
+        return formatter
+    }()
+    
+    static let dateKeyFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }()
+    
+    static let fullDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEEE, dd MMMM yyyy"
+        return formatter
+    }()
+    
+    static func monthYearString(from date: Date) -> String {
+        return monthYearFormatter.string(from: date)
+    }
+    
+    static func dateKey(from date: Date) -> String {
+        return dateKeyFormatter.string(from: date)
+    }
+    
+    static func formattedDateString(from date: Date) -> String {
+        return fullDateFormatter.string(from: date)
+    }
+}
+
 struct ContentView: View {
     @State private var textContent: String = ""
     @State private var selectedDate: Date = Date()
@@ -42,7 +75,7 @@ struct ContentView: View {
                             .padding(.leading, 10) // Add padding from the left edge
                             .frame(maxWidth: .infinity, alignment: .leading) // Pin to left
                             
-                            Text(monthYearFormatter.string(from: currentMonth))
+                            Text(DateUtils.monthYearString(from: currentMonth))
                                 .font(.system(size: 20))
                             
                             Button(action: { changeMonth(by: 1) }) {
@@ -70,7 +103,7 @@ struct ContentView: View {
                 // Text Editor (right side, goldenRatio)
                 VStack {
                     HStack {
-                        Text(formattedDateString(from: selectedDate))
+                        Text(DateUtils.formattedDateString(from: selectedDate))
                             .font(.subheadline)
                         Spacer()
                     }
@@ -94,7 +127,7 @@ struct ContentView: View {
                         .buttonStyle(PlainButtonStyle())
                         
                         Button(action: { toggleItalic() }) {
-                            Text("I")
+                            Text("𝐼") // Updated to Unicode italic I
                                 .frame(width: 30, height: 30) // Square button area
                                 .background(Color.gray.opacity(0.1))
                                 .clipShape(RoundedRectangle(cornerRadius: 5))
@@ -156,12 +189,12 @@ struct ContentView: View {
     }
     
     private func updateTextContent() {
-        let dateKey = dateKeyForDate(selectedDate)
+        let dateKey = DateUtils.dateKey(from: selectedDate)
         textContent = dateTextMap[dateKey] ?? ""
     }
     
     private func saveTextForDate() {
-        let dateKey = dateKeyForDate(selectedDate)
+        let dateKey = DateUtils.dateKey(from: selectedDate)
         if textContent.isEmpty {
             dateTextMap.removeValue(forKey: dateKey) // Remove entry if text is empty
         } else {
@@ -171,21 +204,15 @@ struct ContentView: View {
     }
     
     private func dateKeyForDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter.string(from: date)
+        return DateUtils.dateKey(from: date)
     }
     
     private func formattedDateString(from date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "EEEE, dd MMMM yyyy"
-        return formatter.string(from: date)
+        return DateUtils.formattedDateString(from: date)
     }
     
     private var monthYearFormatter: DateFormatter {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMMM yyyy"
-        return formatter
+        return DateUtils.monthYearFormatter
     }
     
     // Persistence
@@ -361,7 +388,7 @@ struct CalendarView: View {
         var components = calendar.dateComponents([.year, .month], from: currentMonth)
         components.day = day
         if let date = calendar.date(from: components) {
-            let dateKey = dateKeyForDate(date)
+            let dateKey = DateUtils.dateKey(from: date)
             if let content = dateTextMap[dateKey], !content.isEmpty {
                 return true
             }
@@ -370,14 +397,12 @@ struct CalendarView: View {
     }
     
     private func updateTextContent() {
-        let dateKey = dateKeyForDate(selectedDate)
+        let dateKey = DateUtils.dateKey(from: selectedDate)
         textContent = dateTextMap[dateKey] ?? ""
     }
     
     private func dateKeyForDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter.string(from: date)
+        return DateUtils.dateKey(from: date)
     }
 }
 
