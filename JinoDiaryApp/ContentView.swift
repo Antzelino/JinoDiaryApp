@@ -91,14 +91,13 @@ struct ContentView: View {
                         }
                         .padding(.top, 10)
                         
-                        CalendarView(selectedDate: $selectedDate, currentMonth: $currentMonth, availableWidth: geometry.size.width * leftSideRatio - 40, dateTextMap: $dateTextMap, textContent: $textContent) // Adjust width for padding
+                        CalendarView(selectedDate: $selectedDate, currentMonth: $currentMonth, availableWidth: (geometry.size.width - 80) * leftSideRatio - 20, dateTextMap: $dateTextMap, textContent: $textContent) // Adjust width for padding
                             .padding(.horizontal, 10)
                             .padding(.bottom, 10)
                     }
                     .background(Color.gray.opacity(0.1))
                 }
-                .frame(width: geometry.size.width * leftSideRatio - 20) // Adjust for padding
-                .padding(.leading, 20) // Left padding for balance
+                .frame(width: (geometry.size.width - 80) * leftSideRatio) // Adjust for total padding (40 left + 20 right + 20 spacing)
                 
                 // Text Editor (right side, goldenRatio)
                 VStack {
@@ -158,10 +157,9 @@ struct ContentView: View {
                     .padding(.leading, 10) // Match internal padding for balance
                     .padding(.trailing, 10) // Ensure space for character count
                 }
-                .frame(width: geometry.size.width * goldenRatio - 20) // Adjust for padding
-                .padding(.trailing, 20) // Right padding for balance
+                .frame(width: (geometry.size.width - 80) * goldenRatio) // Adjust for total padding (40 left + 20 right + 20 spacing)
             }
-            .padding(.leading, 20) // Outer left padding for window edge
+            .padding(.leading, 40) // Outer left padding for window edge (doubled to 40)
             .padding(.trailing, 20) // Outer right padding for window edge
         }
         .frame(minWidth: 600, minHeight: 500)
