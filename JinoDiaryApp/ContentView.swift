@@ -159,10 +159,12 @@ struct ContentView: View {
                 }
                 .frame(width: (geometry.size.width - 80) * goldenRatio) // Adjust for total padding (40 left + 20 right + 20 spacing)
             }
-            .padding(.leading, 40) // Outer left padding for window edge (doubled to 40)
-            .padding(.trailing, 20) // Outer right padding for window edge
+            .padding(.leading, 40)
+            .padding(.trailing, 20)
+            .padding(.top, 10)
+            .padding(.bottom, 20)
         }
-        .frame(minWidth: 600, minHeight: 500)
+        .frame(minWidth: 600, minHeight: 600)
         .onAppear {
             loadSavedData()
         }
