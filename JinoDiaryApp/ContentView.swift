@@ -127,7 +127,7 @@ struct ContentView: View {
                         .buttonStyle(PlainButtonStyle())
                         
                         Button(action: { toggleItalic() }) {
-                            Text("𝐼") // Updated to Unicode italic I
+                            Text("𝐼")
                                 .frame(width: 30, height: 30) // Square button area
                                 .background(Color.gray.opacity(0.1))
                                 .clipShape(RoundedRectangle(cornerRadius: 5))
@@ -207,25 +207,33 @@ struct ContentView: View {
         return DateUtils.dateKey(from: date)
     }
     
-    private func formattedDateString(from date: Date) -> String {
-        return DateUtils.formattedDateString(from: date)
-    }
-    
-    private var monthYearFormatter: DateFormatter {
-        return DateUtils.monthYearFormatter
-    }
-    
-    // Persistence
+    // Persistence with Error Handling
     private func saveToUserDefaults() {
-        if let encodedData = try? JSONEncoder().encode(dateTextMap) {
+        do {
+            let encodedData = try JSONEncoder().encode(dateTextMap)
             UserDefaults.standard.set(encodedData, forKey: "dateTextMap")
+        } catch {
+            print("Error saving to UserDefaults: \(error.localizedDescription)")
+            // Fallback: Clear the map to prevent corruption
+            dateTextMap = [:]
         }
     }
     
     private func loadSavedData() {
-        if let data = UserDefaults.standard.data(forKey: "dateTextMap"),
-           let savedMap = try? JSONDecoder().decode([String: String].self, from: data) {
-            dateTextMap = savedMap
+        if let data = UserDefaults.standard.data(forKey: "dateTextMap") {
+            do {
+                let savedMap = try JSONDecoder().decode([String: String].self, from: data)
+                dateTextMap = savedMap
+                updateTextContent()
+            } catch {
+                print("Error loading from UserDefaults: \(error.localizedDescription)")
+                // Fallback: Use empty map as default
+                dateTextMap = [:]
+                updateTextContent()
+            }
+        } else {
+            // No data found, initialize with empty map
+            dateTextMap = [:]
             updateTextContent()
         }
     }
