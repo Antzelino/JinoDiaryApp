@@ -417,5 +417,6 @@ struct CalendarView: View {
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
         ContentView()
+            .previewLayout(.fixed(width: 1300, height: 700))
     }
 }
