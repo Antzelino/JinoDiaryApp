@@ -282,7 +282,7 @@ struct CalendarView: View {
     var body: some View {
         VStack(spacing: 5) {
             let days = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
-            let cellWidth = (availableWidth - 20) / 7 // Subtract padding (10 on each side), divide by 7 columns
+            let cellWidth = (availableWidth - 80) / 7 // Subtract padding, divide by 7 columns
             
             HStack(spacing: 0) {
                 ForEach(days, id: \.self) { day in
