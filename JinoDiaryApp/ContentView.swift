@@ -96,6 +96,7 @@ struct ContentView: View {
                             .padding(.bottom, 10)
                     }
                     .background(Color.gray.opacity(0.1))
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
                 }
                 .frame(width: (geometry.size.width - 80) * leftSideRatio) // Adjust for total padding (40 left + 20 right + 20 spacing)
                 
@@ -103,19 +104,24 @@ struct ContentView: View {
                 VStack {
                     HStack {
                         Text(DateUtils.formattedDateString(from: selectedDate))
-                            .font(.subheadline)
+                            .font(.title3)
                         Spacer()
                     }
-                    .padding()
-                    
-                    TextEditor(text: $textContent)
-                        .font(.system(size: 18))
-                        .frame(minHeight: 400)
-                        .padding()
-                        .onChange(of: textContent) { oldValue, newValue in
-                            saveTextForDate()
-                        }
-                    
+
+                    ZStack {
+                        TextEditor(text: $textContent)
+                            .font(.system(size: 18))
+                            .padding(.horizontal, 15)
+                            .padding(.vertical, 18)
+                            .frame(minHeight: 530)
+                            .onChange(of: textContent) {
+                                saveTextForDate()
+                            }
+                            .lineSpacing(10)
+                            .background(Color.white)
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+
                     HStack {
                         Button(action: { toggleBold() }) {
                             Text("B")
@@ -152,17 +158,16 @@ struct ContentView: View {
                         Spacer()
                         Text("\(textContent.count)")
                             .foregroundColor(.gray)
-                            .padding(.trailing, 10) // Add padding to prevent clipping
                     }
-                    .padding(.leading, 10) // Match internal padding for balance
-                    .padding(.trailing, 10) // Ensure space for character count
+                    .padding(.top, 5)
                 }
-                .frame(width: (geometry.size.width - 80) * goldenRatio) // Adjust for total padding (40 left + 20 right + 20 spacing)
+                .padding()
+                .frame(width: (geometry.size.width - 80) * goldenRatio)
             }
             .padding(.leading, 40)
             .padding(.trailing, 20)
-            .padding(.top, 10)
             .padding(.bottom, 20)
+            .padding(.top, 20)
         }
         .frame(minWidth: 600, minHeight: 600)
         .onAppear {
@@ -276,13 +281,14 @@ struct CalendarView: View {
     @Binding var dateTextMap: [String: String]
     @Binding var textContent: String
     let calendar = Calendar.current
-    
     @State private var hoveredDay: Int? = nil // Track the hovered day
+    @State private var padding: CGFloat = 40 // Adjustable padding
     
     var body: some View {
         VStack(spacing: 5) {
             let days = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
-            let cellWidth = (availableWidth - 80) / 7 // Subtract padding, divide by 7 columns
+            let cellWidth = (availableWidth - 2 * padding) / 7
+            let circleSize = cellWidth * 0.75
             
             HStack(spacing: 0) {
                 ForEach(days, id: \.self) { day in
@@ -307,19 +313,19 @@ struct CalendarView: View {
                                 if hoveredDay == day {
                                     Circle()
                                         .fill(Color.gray.opacity(0.1)) // Subtle grey hover highlight
-                                        .frame(width: cellWidth * 0.7, height: cellWidth * 0.7) // Match size with other highlights
+                                        .frame(width: circleSize)
                                 }
                                 
                                 // Filled highlight for selected day
                                 Circle()
                                     .fill(isSelected(day: day) ? Color.gray.opacity(0.2) : Color.clear)
-                                    .frame(width: cellWidth * 0.7, height: cellWidth * 0.7) // Slightly smaller
+                                    .frame(width: circleSize)
                                 
                                 // Stroke highlight for today
                                 if isToday(day: day) {
                                     Circle()
                                         .stroke(Color.blue.opacity(0.5), lineWidth: 3) // Light blue stroke, 3px thick
-                                        .frame(width: cellWidth * 0.7, height: cellWidth * 0.7) // Slightly smaller
+                                        .frame(width: circleSize)
                                 }
                                 
                                 // Day number
