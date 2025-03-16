@@ -169,7 +169,7 @@ struct ContentView: View {
             .padding(.bottom, 20)
             .padding(.top, 20)
         }
-        .frame(minWidth: 600, minHeight: 600)
+        .frame(minWidth: 1200, minHeight: 650)
         .onAppear {
             loadSavedData()
         }
