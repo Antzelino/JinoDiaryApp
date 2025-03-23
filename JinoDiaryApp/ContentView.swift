@@ -43,6 +43,37 @@ struct DateUtils {
     }
 }
 
+struct ArrowButton: View {
+    let direction: ArrowDirection
+    let action: () -> Void
+    let buttonColor: Color = Color.init(cgColor: CGColor(red: 190/255, green: 190/255, blue: 190/255, alpha: 1))
+    
+    enum ArrowDirection {
+        case left
+        case right
+        
+        var systemImageName: String {
+            switch self {
+            case .left: return "chevron.left"
+            case .right: return "chevron.right"
+            }
+        }
+    }
+    
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: direction.systemImageName)
+                .font(.system(size: 15))
+                .fontWeight(.heavy)
+                .frame(width: 30, height: 30)
+                .background(RoundedRectangle(cornerRadius: 5)
+                    .fill(buttonColor)
+                    .shadow(color: .black.opacity(0.3), radius: 2, x: 2, y: 2))
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 struct ContentView: View {
     @State private var textContent: String = ""
     @State private var selectedDate: Date = Date()
@@ -79,39 +110,26 @@ struct ContentView: View {
                     
                     // Navigation and Calendar in the grey box
                     VStack {
-                        HStack {
-                            Button(action: { changeMonth(by: -1) }) {
-                                Image(systemName: "chevron.left")
-                                    .font(.system(size: 15))
-                                    .fontWeight(.heavy)
-                                    .frame(width: 30, height: 30) // Square button area
-                                    .background(Color.gray.opacity(0.2))
-                                    .clipShape(RoundedRectangle(cornerRadius: 5))
-                            }
-                            .buttonStyle(PlainButtonStyle())
-                            .padding(.leading, 10) // Add padding from the left edge
-                            .frame(maxWidth: .infinity, alignment: .leading) // Pin to left
+                        HStack { let buttonColor = Color.init(cgColor: CGColor(red: 190/255, green: 190/255, blue: 190/255, alpha: 1))
+                            ArrowButton(direction: .left, action: { changeMonth(by: -1) })
                             
-                            Text(DateUtils.monthYearString(from: currentMonth))
-                                .font(.system(size: 20))
+                            Spacer()
                             
-                            Button(action: { changeMonth(by: 1) }) {
-                                Image(systemName: "chevron.right")
-                                    .font(.system(size: 15))
-                                    .fontWeight(.heavy)
-                                    .frame(width: 30, height: 30) // Square button area
-                                    .background(Color.gray.opacity(0.2))
-                                    .clipShape(RoundedRectangle(cornerRadius: 5))
-                            }
-                            .buttonStyle(PlainButtonStyle())
-                            .padding(.trailing, 10) // Add padding from the right edge
-                            .frame(maxWidth: .infinity, alignment: .trailing) // Pin to right
+                            Text(DateUtils.monthYearString(from: currentMonth)).font(.system(size: 20))
+                            
+                            Spacer()
+                            
+                            ArrowButton(direction: .right, action: { changeMonth(by: 1) })
                         }
-                        .padding(.top, 10)
+                        .padding(10)
                         
-                        CalendarView(selectedDate: $selectedDate, currentMonth: $currentMonth, availableWidth: (geometry.size.width - 60) * leftSideRatio, dateTextMap: $dateTextMap, textContent: $textContent) // Adjust width for padding
-                            .padding(.horizontal, 10)
-                            .padding(.bottom, 10)
+                        CalendarView(selectedDate: $selectedDate,
+                                     currentMonth: $currentMonth,
+                                     availableWidth: (geometry.size.width - 60) * leftSideRatio,
+                                     dateTextMap: $dateTextMap,
+                                     textContent: $textContent)
+                        .padding(.horizontal, 10)
+                        .padding(.bottom, 10)
                     }
                     .background(Color.gray.opacity(0.1))
                     .clipShape(RoundedRectangle(cornerRadius: 10))
