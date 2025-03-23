@@ -49,6 +49,7 @@ struct ContentView: View {
     @State private var currentMonth: Date = Date()
     @State private var dateTextMap: [String: String] = [:] // Dictionary to store text per date
     let calendar = Calendar.current
+    let disableFormattingButtons = true
     let spacingBetweenButtonAndCalendarView = 15.0
     let todayButtonColor: Color = Color.init(cgColor: CGColor(red: 200/255, green: 220/255, blue: 255/255, alpha: 1))
     
@@ -81,9 +82,10 @@ struct ContentView: View {
                         HStack {
                             Button(action: { changeMonth(by: -1) }) {
                                 Image(systemName: "chevron.left")
-                                    .font(.system(size: 20))
+                                    .font(.system(size: 15))
+                                    .fontWeight(.heavy)
                                     .frame(width: 30, height: 30) // Square button area
-                                    .background(Color.gray.opacity(0.1))
+                                    .background(Color.gray.opacity(0.2))
                                     .clipShape(RoundedRectangle(cornerRadius: 5))
                             }
                             .buttonStyle(PlainButtonStyle())
@@ -95,9 +97,10 @@ struct ContentView: View {
                             
                             Button(action: { changeMonth(by: 1) }) {
                                 Image(systemName: "chevron.right")
-                                    .font(.system(size: 20))
+                                    .font(.system(size: 15))
+                                    .fontWeight(.heavy)
                                     .frame(width: 30, height: 30) // Square button area
-                                    .background(Color.gray.opacity(0.1))
+                                    .background(Color.gray.opacity(0.2))
                                     .clipShape(RoundedRectangle(cornerRadius: 5))
                             }
                             .buttonStyle(PlainButtonStyle())
@@ -106,7 +109,7 @@ struct ContentView: View {
                         }
                         .padding(.top, 10)
                         
-                        CalendarView(selectedDate: $selectedDate, currentMonth: $currentMonth, availableWidth: (geometry.size.width - 80) * leftSideRatio - 20, dateTextMap: $dateTextMap, textContent: $textContent) // Adjust width for padding
+                        CalendarView(selectedDate: $selectedDate, currentMonth: $currentMonth, availableWidth: (geometry.size.width - 60) * leftSideRatio, dateTextMap: $dateTextMap, textContent: $textContent) // Adjust width for padding
                             .padding(.horizontal, 10)
                             .padding(.bottom, 10)
                     }
@@ -129,7 +132,7 @@ struct ContentView: View {
                             .font(.system(size: 18))
                             .padding(.horizontal, 15)
                             .padding(.vertical, 18)
-                            .frame(minHeight: 530)
+                            .frame(minHeight: geometry.size.height - 150)
                             .onChange(of: textContent) {
                                 saveTextForDate()
                             }
@@ -141,49 +144,50 @@ struct ContentView: View {
                     HStack {
                         Button(action: { toggleBold() }) {
                             Text("B")
-                                .frame(width: 30, height: 30) // Square button area
+                                .frame(width: 30, height: 30)
                                 .background(Color.gray.opacity(0.1))
                                 .clipShape(RoundedRectangle(cornerRadius: 5))
                         }
-                        .buttonStyle(PlainButtonStyle())
+                        .disabled(disableFormattingButtons)
                         
                         Button(action: { toggleItalic() }) {
                             Text("𝐼")
-                                .frame(width: 30, height: 30) // Square button area
+                                .frame(width: 30, height: 30)
                                 .background(Color.gray.opacity(0.1))
                                 .clipShape(RoundedRectangle(cornerRadius: 5))
                         }
-                        .buttonStyle(PlainButtonStyle())
+                        .disabled(disableFormattingButtons)
                         
                         Button(action: { addBulletPoint() }) {
                             Text("•")
-                                .frame(width: 30, height: 30) // Square button area
+                                .frame(width: 30, height: 30)
                                 .background(Color.gray.opacity(0.1))
                                 .clipShape(RoundedRectangle(cornerRadius: 5))
                         }
-                        .buttonStyle(PlainButtonStyle())
+                        .disabled(disableFormattingButtons)
                         
                         Button(action: { addNumberedList() }) {
                             Text("1.")
-                                .frame(width: 30, height: 30) // Square button area
+                                .frame(width: 30, height: 30)
                                 .background(Color.gray.opacity(0.1))
                                 .clipShape(RoundedRectangle(cornerRadius: 5))
                         }
-                        .buttonStyle(PlainButtonStyle())
+                        .disabled(disableFormattingButtons)
                         
                         Spacer()
+                        
                         Text("\(textContent.count)")
                             .foregroundColor(.gray)
                     }
+                    .buttonStyle(.plain)
+                    .disabled(true)
                     .padding(.top, 5)
                 }
-                .padding()
-                .frame(width: (geometry.size.width - 80) * goldenRatio)
+                .frame(width: (geometry.size.width - 60) * goldenRatio) // 60 comes from 20 padding each side and 20 spacing = 2*20 + 20 = 60
             }
-            .padding(.leading, 40)
-            .padding(.trailing, 20)
+            .padding(.horizontal, 20)
             .padding(.bottom, 20)
-            .padding(.top, 20)
+            .padding(.top, 15)
         }
         .frame(minWidth: 1200, minHeight: 650)
         .onAppear {
