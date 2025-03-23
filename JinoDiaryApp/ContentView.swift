@@ -348,7 +348,7 @@ struct CalendarView: View {
             
             let daysInMonth = calendar.range(of: .day, in: .month, for: currentMonth)!
             let firstDayOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: currentMonth))!
-            let firstWeekday = (calendar.component(.weekday, from: firstDayOfMonth) - 2 + 7) % 7 // Adjusted for Monday start
+            let firstWeekday = (calendar.component(.weekday, from: firstDayOfMonth) - 2 + 7) % 7 // Monday start
             let weeks = generateWeeks(firstWeekday: firstWeekday, days: daysInMonth.count)
             
             ForEach(weeks, id: \.self) { week in
@@ -359,16 +359,16 @@ struct CalendarView: View {
                                 // Hover highlight
                                 if hoveredDay == day {
                                     Circle()
-                                        .fill(Color.gray.opacity(0.1)) // Subtle grey hover highlight
+                                        .fill(Color.gray.opacity(0.1)) // Subtle gray hover highlight
                                         .frame(width: circleSize)
                                 }
                                 
-                                // Filled highlight for selected day
+                                // Filled slight gray highlight for selected day
                                 Circle()
                                     .fill(isSelected(day: day) ? Color.gray.opacity(0.2) : Color.clear)
                                     .frame(width: circleSize)
                                 
-                                // Stroke highlight for today
+                                // Stroke blue highlight for today
                                 if isToday(day: day) {
                                     Circle()
                                         .stroke(Color.blue.opacity(0.5), lineWidth: 3) // Light blue stroke, 3px thick
