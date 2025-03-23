@@ -110,7 +110,7 @@ struct ContentView: View {
                     
                     // Navigation and Calendar in the grey box
                     VStack {
-                        HStack { let buttonColor = Color.init(cgColor: CGColor(red: 190/255, green: 190/255, blue: 190/255, alpha: 1))
+                        HStack { let buttonColor = Color.init(cgColor: CGColor(gray: 190/255, alpha: 1))
                             ArrowButton(direction: .left, action: { changeMonth(by: -1) })
                             
                             Spacer()
