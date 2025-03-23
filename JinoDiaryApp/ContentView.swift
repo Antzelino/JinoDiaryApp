@@ -20,6 +20,12 @@ struct DateUtils {
         return formatter
     }()
     
+    static let dayMonthYearFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "dd MMMM yyyy"
+        return formatter
+    }()
+    
     static func monthYearString(from date: Date) -> String {
         return monthYearFormatter.string(from: date)
     }
@@ -31,6 +37,10 @@ struct DateUtils {
     static func formattedDateString(from date: Date) -> String {
         return fullDateFormatter.string(from: date)
     }
+    
+    static func dayMonthYearString(from date: Date) -> String {
+        return dayMonthYearFormatter.string(from: date)
+    }
 }
 
 struct ContentView: View {
@@ -39,6 +49,8 @@ struct ContentView: View {
     @State private var currentMonth: Date = Date()
     @State private var dateTextMap: [String: String] = [:] // Dictionary to store text per date
     let calendar = Calendar.current
+    let spacingBetweenButtonAndCalendarView = 15.0
+    let todayButtonColor: Color = Color.init(cgColor: CGColor(red: 200/255, green: 220/255, blue: 255/255, alpha: 1))
     
     // Golden ratio proportions
     let goldenRatio: CGFloat = 0.6180339887 // 1/phi for the right side
@@ -48,18 +60,21 @@ struct ContentView: View {
         GeometryReader { geometry in
             HStack(spacing: 20) { // Explicit spacing between halves (20 points)
                 // Calendar View (left side, 1 - goldenRatio)
-                VStack {
-                    // Go To Today Button above the grey box
+                VStack(spacing: spacingBetweenButtonAndCalendarView)
+                {
+                    // Go To Today Button above the grey calendar box
                     Button(action: { goToToday() }) {
-                        Text("Go To Today")
-                            .font(.system(size: 20))
-                            .padding(.vertical, 5)
-                            .padding(.horizontal, 10)
-                            .background(Color.blue.opacity(0.1))
-                            .clipShape(RoundedRectangle(cornerRadius: 5))
+                        Text("Go to Today")
+                            .padding(.vertical, 8)
+                            .padding(.horizontal, 40)
+                            .font(.system(size: 20, weight: .medium, design: .rounded))
+                            .background(RoundedRectangle(cornerRadius: 5)
+                                .fill(todayButtonColor)
+                                .shadow(color: .black.opacity(0.35), radius: 3, x: 2, y: 2)) // Shadow on the button
+                            .foregroundColor(.blue.opacity(0.7)) // Text color
                     }
-                    .buttonStyle(PlainButtonStyle())
-                    .padding(.top, 10)
+                    .help(Text(DateUtils.dayMonthYearString(from: selectedDate))) // Hover tooltip shows today's date
+                    .buttonStyle(.plain)
                     
                     // Navigation and Calendar in the grey box
                     VStack {
