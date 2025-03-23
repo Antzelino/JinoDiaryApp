@@ -58,7 +58,7 @@ struct ContentView: View {
     
     var body: some View {
         GeometryReader { geometry in
-            HStack(spacing: 20) { // Explicit spacing between halves (20 points)
+            HStack(spacing: 20) { // 20 points spacing between the two halves left & right
                 // Calendar View (left side, 1 - goldenRatio)
                 VStack(spacing: spacingBetweenButtonAndCalendarView)
                 {
@@ -113,7 +113,8 @@ struct ContentView: View {
                     .background(Color.gray.opacity(0.1))
                     .clipShape(RoundedRectangle(cornerRadius: 10))
                 }
-                .frame(width: (geometry.size.width - 80) * leftSideRatio) // Adjust for total padding (40 left + 20 right + 20 spacing)
+                .frame(width: (geometry.size.width - 60) * leftSideRatio)
+                .padding(.bottom, spacingBetweenButtonAndCalendarView)
                 
                 // Text Editor (right side, goldenRatio)
                 VStack {
@@ -438,6 +439,6 @@ struct CalendarView: View {
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
         ContentView()
-            .previewLayout(.fixed(width: 1300, height: 700))
+            .previewLayout(.device)
     }
 }
