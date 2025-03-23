@@ -79,10 +79,19 @@ struct ContentView: View {
     @State private var selectedDate: Date = Date()
     @State private var currentMonth: Date = Date()
     @State private var dateTextMap: [String: String] = [:] // Dictionary to store text per date
-    let calendar = Calendar.current
-    let disableFormattingButtons = true
-    let spacingBetweenButtonAndCalendarView = 15.0
+    let calendar: Calendar = Calendar.current
+    let disableFormattingButtons: Bool = true
+    let spacingBetweenButtonAndCalendarView: CGFloat = 15.0
     let todayButtonColor: Color = Color.init(cgColor: CGColor(red: 200/255, green: 220/255, blue: 255/255, alpha: 1))
+    
+    // Spacing and layout constants
+    let topLevelSpacing: CGFloat = 20
+    let topLevelHorizontalPadding: CGFloat = 20
+    let topLevelVerticalPadding: CGFloat = 15
+    let horizontalEmptySpace: CGFloat // How much of the width is spacing or padding, rather than some kind of content
+    init() {
+        horizontalEmptySpace = 1 * topLevelSpacing + 2 * topLevelHorizontalPadding
+    }
     
     // Golden ratio proportions
     let goldenRatio: CGFloat = 0.6180339887 // 1/phi for the right side
@@ -90,10 +99,9 @@ struct ContentView: View {
     
     var body: some View {
         GeometryReader { geometry in
-            HStack(spacing: 20) { // 20 points spacing between the two halves left & right
+            HStack(spacing: topLevelSpacing) {
                 // Calendar View (left side, 1 - goldenRatio)
-                VStack(spacing: spacingBetweenButtonAndCalendarView)
-                {
+                VStack(spacing: spacingBetweenButtonAndCalendarView) {
                     // Go To Today Button above the grey calendar box
                     Button(action: { goToToday() }) {
                         Text("Go to Today")
@@ -125,17 +133,16 @@ struct ContentView: View {
                         
                         CalendarView(selectedDate: $selectedDate,
                                      currentMonth: $currentMonth,
-                                     availableWidth: (geometry.size.width - 60) * leftSideRatio,
                                      dateTextMap: $dateTextMap,
-                                     textContent: $textContent)
-                        .padding(.horizontal, 10)
+                                     textContent: $textContent,
+                                     availableWidth: (geometry.size.width - horizontalEmptySpace) * leftSideRatio)
                         .padding(.bottom, 10)
                     }
-                    .background(Color.gray.opacity(0.1))
+                    .background(Color.init(cgColor: CGColor(gray: 220/255, alpha: 1)))
                     .clipShape(RoundedRectangle(cornerRadius: 10))
                 }
-                .frame(width: (geometry.size.width - 60) * leftSideRatio)
-                .padding(.bottom, spacingBetweenButtonAndCalendarView)
+                .frame(width: (geometry.size.width - horizontalEmptySpace) * leftSideRatio)
+                .padding(.bottom, spacingBetweenButtonAndCalendarView) // This helps bring it slightly higher which look I prefer
                 
                 // Text Editor (right side, goldenRatio)
                 VStack {
@@ -150,7 +157,6 @@ struct ContentView: View {
                             .font(.system(size: 18))
                             .padding(.horizontal, 15)
                             .padding(.vertical, 18)
-                            .frame(minHeight: geometry.size.height - 150)
                             .onChange(of: textContent) {
                                 saveTextForDate()
                             }
@@ -201,11 +207,10 @@ struct ContentView: View {
                     .disabled(true)
                     .padding(.top, 5)
                 }
-                .frame(width: (geometry.size.width - 60) * goldenRatio) // 60 comes from 20 padding each side and 20 spacing = 2*20 + 20 = 60
+                .frame(width: (geometry.size.width - horizontalEmptySpace) * goldenRatio)
             }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 20)
-            .padding(.top, 15)
+            .padding(.horizontal, topLevelHorizontalPadding)
+            .padding(.vertical, topLevelVerticalPadding)
         }
         .frame(minWidth: 1200, minHeight: 650)
         .onAppear {
@@ -315,25 +320,29 @@ struct ContentView: View {
 struct CalendarView: View {
     @Binding var selectedDate: Date
     @Binding var currentMonth: Date
-    let availableWidth: CGFloat
     @Binding var dateTextMap: [String: String]
     @Binding var textContent: String
+    let availableWidth: CGFloat
     let calendar = Calendar.current
+    
     @State private var hoveredDay: Int? = nil // Track the hovered day
-    @State private var padding: CGFloat = 40 // Adjustable padding
+    @State private var calendarGridDensity: CGFloat = 90 // I find the value 90 makes the grid as dense as I like
     
     var body: some View {
         VStack(spacing: 5) {
-            let days = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
-            let cellWidth = (availableWidth - 2 * padding) / 7
+            let cellWidth = (availableWidth - calendarGridDensity) / 7
             let circleSize = cellWidth * 0.75
-            
+    
             HStack(spacing: 0) {
+                let days = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
+                let weekend = days[5...6]
+                let weekendColor: Color = Color(red: 230/255, green: 70/255, blue: 70/255)
+                
                 ForEach(days, id: \.self) { day in
                     Text(day)
-                        .font(.system(size: 15))
-                        .frame(width: cellWidth, height: cellWidth)
-                        .multilineTextAlignment(.center)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(weekend.contains(day) ? weekendColor : Color.black)
+                        .frame(width: cellWidth, height: cellWidth, alignment: .center)
                 }
             }
             
