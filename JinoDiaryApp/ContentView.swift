@@ -69,6 +69,7 @@ struct ArrowButton: View {
                 .background(RoundedRectangle(cornerRadius: 5)
                     .fill(buttonColor)
                     .shadow(color: .black.opacity(0.3), radius: 2, x: 2, y: 2))
+                .foregroundColor(.black)
         }
         .buttonStyle(.plain)
     }
@@ -83,6 +84,7 @@ struct ContentView: View {
     let disableFormattingButtons: Bool = true
     let spacingBetweenButtonAndCalendarView: CGFloat = 15.0
     let todayButtonColor: Color = Color.init(cgColor: CGColor(red: 200/255, green: 220/255, blue: 255/255, alpha: 1))
+    let calendarViewBackgroundColor: Color = Color.init(cgColor: CGColor(gray: 220/255, alpha: 1))
     
     // Spacing and layout constants
     let topLevelSpacing: CGFloat = 20
@@ -138,8 +140,8 @@ struct ContentView: View {
                                      availableWidth: (geometry.size.width - horizontalEmptySpace) * leftSideRatio)
                         .padding(.bottom, 10)
                     }
-                    .background(Color.init(cgColor: CGColor(gray: 220/255, alpha: 1)))
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .background(RoundedRectangle(cornerRadius: 10)
+                        .fill(calendarViewBackgroundColor))
                 }
                 .frame(width: (geometry.size.width - horizontalEmptySpace) * leftSideRatio)
                 .padding(.bottom, spacingBetweenButtonAndCalendarView) // This helps bring it slightly higher which look I prefer
