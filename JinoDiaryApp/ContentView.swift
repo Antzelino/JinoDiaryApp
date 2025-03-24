@@ -338,10 +338,11 @@ struct CalendarGrid: View {
                 let weekend = ["Sa", "Su"]
                 let weekendColor: Color = Color(red: 230/255, green: 70/255, blue: 70/255)
                 let days = ["Mo", "Tu", "We", "Th", "Fr"] + weekend
+                let dayFont: Font = Font.system(size: 15, weight: .semibold)
                 
                 ForEach(days, id: \.self) { day in
                     Text(day)
-                        .font(.system(size: 15, weight: .semibold))
+                        .font(dayFont)
                         .foregroundStyle(weekend.contains(day) ? weekendColor : Color.black)
                         .frame(width: cellWidth, height: cellWidth, alignment: .center)
                 }
