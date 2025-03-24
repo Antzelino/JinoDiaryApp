@@ -84,16 +84,32 @@ struct ArrowButton: View {
 
 struct TextFormattingButton: View {
     let action: () -> Void
-    let buttonImage: Image
+    let formattingOption: FormattingOption
     
     private let fontSize: CGFloat = 18
     private let frameSize: CGFloat = 30
     private let buttonColor: Color = Color.init(cgColor: CGColor(gray: 215/255, alpha: 1))
     private let buttonShape: RoundedRectangle = RoundedRectangle(cornerRadius: 5)
     
+    enum FormattingOption {
+        case bold
+        case italic
+        case bulletList
+        case numberList
+        
+        var systemImageName: String {
+            switch self {
+            case .bold: return "bold"
+            case .italic: return "italic"
+            case .bulletList: return "list.bullet"
+            case .numberList: return "list.number"
+            }
+        }
+    }
+    
     var body: some View {
         Button(action: action) {
-            buttonImage
+            Image(systemName: formattingOption.systemImageName)
                 .font(.system(size: fontSize))
                 .frame(width: frameSize, height: frameSize)
                 .background(buttonShape
@@ -199,19 +215,19 @@ struct ContentView: View {
                     HStack {
                         TextFormattingButton(
                             action: { toggleBold() },
-                            buttonImage: Image(systemName: "bold"))
+                            formattingOption: .bold)
                         
                         TextFormattingButton(
                             action: { toggleItalic() },
-                            buttonImage: Image(systemName: "italic"))
+                            formattingOption: .italic)
                         
                         TextFormattingButton(
                             action: { addBulletPoint() },
-                            buttonImage: Image(systemName: "list.bullet"))
+                            formattingOption: .bulletList)
                         
                         TextFormattingButton(
                             action: { addNumberedList() },
-                            buttonImage: Image(systemName: "list.number"))
+                            formattingOption: .numberList)
                         
                         Spacer()
                         
