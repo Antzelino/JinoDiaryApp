@@ -138,7 +138,7 @@ struct ContentView: View {
                         .fill(calendarViewBackgroundColor))
                 }
                 .frame(width: (geometry.size.width - horizontalEmptySpace) * leftSideRatio)
-                .padding(.bottom, spacingBetweenTodayButtonAndCalendar) // This helps bring it slightly higher which look I prefer
+                .padding(.bottom, spacingBetweenTodayButtonAndCalendar) // This helps bring it slightly higher which is a look I prefer
                 
                 // Text Editor (right side, goldenRatio)
                 VStack {
