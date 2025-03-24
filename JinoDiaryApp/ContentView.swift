@@ -43,85 +43,6 @@ struct DateUtils {
     }
 }
 
-struct ArrowButton: View {
-    let direction: ArrowDirection
-    let action: () -> Void
-    
-    private let buttonColor: Color = Color.init(cgColor: CGColor(gray: 190/255, alpha: 1))
-    private let fontSize: CGFloat = 15
-    private let fontWeight: Font.Weight = .heavy
-    private let frameSize: CGFloat = 30
-    private let buttonShape: RoundedRectangle = RoundedRectangle(cornerRadius: 5)
-    private let shadowColor: Color = Color.black.opacity(0.3)
-    private let textColor: Color = Color.black
-    
-    enum ArrowDirection {
-        case left
-        case right
-        
-        var systemImageName: String {
-            switch self {
-            case .left: return "chevron.left"
-            case .right: return "chevron.right"
-            }
-        }
-    }
-    
-    var body: some View {
-        Button(action: action) {
-            Image(systemName: direction.systemImageName)
-                .font(.system(size: fontSize))
-                .fontWeight(fontWeight)
-                .frame(width: frameSize, height: frameSize)
-                .background(buttonShape
-                    .fill(buttonColor)
-                    .shadow(color: shadowColor, radius: 2, x: 2, y: 2))
-                .foregroundColor(textColor)
-        }
-        .buttonStyle(.plain)
-    }
-}
-
-struct TextFormattingButton: View {
-    let action: () -> Void
-    let formattingOption: FormattingOption
-    
-    private let fontSize: CGFloat = 18
-    private let frameSize: CGFloat = 30
-    private let buttonColor: Color = Color.init(cgColor: CGColor(gray: 215/255, alpha: 1))
-    private let buttonShape: RoundedRectangle = RoundedRectangle(cornerRadius: 5)
-    
-    enum FormattingOption {
-        case bold
-        case italic
-        case bulletList
-        case numberList
-        
-        var systemImageName: String {
-            switch self {
-            case .bold: return "bold"
-            case .italic: return "italic"
-            case .bulletList: return "list.bullet"
-            case .numberList: return "list.number"
-            }
-        }
-    }
-    
-    var body: some View {
-        Button(action: action) {
-            Image(systemName: formattingOption.systemImageName)
-                .font(.system(size: fontSize))
-                .frame(width: frameSize, height: frameSize)
-                .background(buttonShape
-                    .fill(buttonColor)
-                    .shadow(color: .black.opacity(0.3), radius: 2, x: 2, y: 2))
-                .foregroundStyle(.black)
-        }
-        .buttonStyle(.plain)
-        .disabled(true)
-    }
-}
-
 struct ContentView: View {
     @State private var textContent: String = ""
     @State private var selectedDate: Date = Date()
@@ -167,7 +88,25 @@ struct ContentView: View {
                     // Month-navigation and CalendarGrid in the grey box
                     VStack {
                         HStack {
-                            ArrowButton(direction: .left, action: { changeMonth(by: -1) })
+                            let buttonColor: Color = Color.init(cgColor: CGColor(gray: 190/255, alpha: 1))
+                            let fontSize: CGFloat = 15
+                            let fontWeight: Font.Weight = .heavy
+                            let frameSize: CGFloat = 30
+                            let buttonShape: RoundedRectangle = RoundedRectangle(cornerRadius: 5)
+                            let shadowColor: Color = Color.black.opacity(0.3)
+                            let textColor: Color = Color.black
+                            
+                            Button(action: {changeMonth(by: -1)} ) {
+                                Image(systemName: "chevron.left")
+                                    .font(.system(size: fontSize))
+                                    .fontWeight(fontWeight)
+                                    .frame(width: frameSize, height: frameSize)
+                                    .background(buttonShape
+                                        .fill(buttonColor)
+                                        .shadow(color: shadowColor, radius: 2, x: 2, y: 2))
+                                    .foregroundColor(textColor)
+                            }
+                            .buttonStyle(.plain)
                             
                             Spacer()
                             
@@ -175,7 +114,17 @@ struct ContentView: View {
                             
                             Spacer()
                             
-                            ArrowButton(direction: .right, action: { changeMonth(by: 1) })
+                            Button(action: {changeMonth(by: 1)} ) {
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: fontSize))
+                                    .fontWeight(fontWeight)
+                                    .frame(width: frameSize, height: frameSize)
+                                    .background(buttonShape
+                                        .fill(buttonColor)
+                                        .shadow(color: shadowColor, radius: 2, x: 2, y: 2))
+                                    .foregroundColor(textColor)
+                            }
+                            .buttonStyle(.plain)
                         }
                         .padding(10)
                         
@@ -213,21 +162,58 @@ struct ContentView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 10))
 
                     HStack {
-                        TextFormattingButton(
-                            action: { toggleBold() },
-                            formattingOption: .bold)
+                        let fontSize: CGFloat = 18
+                        let frameSize: CGFloat = 30
+                        let buttonColor: Color = Color.init(red: 215/255, green: 215/255, blue: 215/255)
+                        let buttonShape: RoundedRectangle = RoundedRectangle(cornerRadius: 5)
                         
-                        TextFormattingButton(
-                            action: { toggleItalic() },
-                            formattingOption: .italic)
+                        Button(action: { toggleBold() }) {
+                            Image(systemName: "bold")
+                                .font(.system(size: 18))
+                                .frame(width: frameSize, height: frameSize)
+                                .background(RoundedRectangle(cornerRadius: 5)
+                                    .fill(buttonColor)
+                                    .shadow(color: .black.opacity(0.3), radius: 2, x: 2, y: 2))
+                                .foregroundStyle(.black)
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(true)
                         
-                        TextFormattingButton(
-                            action: { addBulletPoint() },
-                            formattingOption: .bulletList)
+                        Button(action: { toggleItalic() }) {
+                            Image(systemName: "italic")
+                                .font(.system(size: fontSize))
+                                .frame(width: frameSize, height: frameSize)
+                                .background(buttonShape
+                                    .fill(buttonColor)
+                                    .shadow(color: .black.opacity(0.3), radius: 2, x: 2, y: 2))
+                                .foregroundStyle(.black)
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(true)
                         
-                        TextFormattingButton(
-                            action: { addNumberedList() },
-                            formattingOption: .numberList)
+                        Button(action: { addBulletPoint() }) {
+                            Image(systemName: "list.bullet")
+                                .font(.system(size: fontSize))
+                                .frame(width: frameSize, height: frameSize)
+                                .background(buttonShape
+                                    .fill(buttonColor)
+                                    .shadow(color: .black.opacity(0.3), radius: 2, x: 2, y: 2))
+                                .foregroundStyle(.black)
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(true)
+                        
+                        Button(action: { addNumberedList() }) {
+                            Image(systemName: "list.number")
+                                .font(.system(size: fontSize))
+                                .frame(width: frameSize, height: frameSize)
+                                .background(buttonShape
+                                    .fill(buttonColor)
+                                    .shadow(color: .black.opacity(0.3), radius: 2, x: 2, y: 2))
+                                .foregroundStyle(.black)
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(true)
                         
                         Spacer()
                         
