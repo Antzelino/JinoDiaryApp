@@ -499,9 +499,9 @@ struct CalendarGrid: View {
     }
 }
 
+// For the Preview Canvas within XCode
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
         ContentView()
-            .previewLayout(.device)
     }
 }
