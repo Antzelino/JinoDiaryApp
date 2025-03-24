@@ -46,7 +46,14 @@ struct DateUtils {
 struct ArrowButton: View {
     let direction: ArrowDirection
     let action: () -> Void
-    let buttonColor: Color = Color.init(cgColor: CGColor(red: 190/255, green: 190/255, blue: 190/255, alpha: 1))
+    
+    private let buttonColor: Color = Color.init(cgColor: CGColor(gray: 190/255, alpha: 1))
+    private let fontSize: CGFloat = 15
+    private let fontWeight: Font.Weight = .heavy
+    private let frameSize: CGFloat = 30
+    private let buttonShape: RoundedRectangle = RoundedRectangle(cornerRadius: 5)
+    private let shadowColor: Color = Color.black.opacity(0.3)
+    private let textColor: Color = Color.black
     
     enum ArrowDirection {
         case left
@@ -63,15 +70,39 @@ struct ArrowButton: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: direction.systemImageName)
-                .font(.system(size: 15))
-                .fontWeight(.heavy)
-                .frame(width: 30, height: 30)
-                .background(RoundedRectangle(cornerRadius: 5)
+                .font(.system(size: fontSize))
+                .fontWeight(fontWeight)
+                .frame(width: frameSize, height: frameSize)
+                .background(buttonShape
                     .fill(buttonColor)
-                    .shadow(color: .black.opacity(0.3), radius: 2, x: 2, y: 2))
-                .foregroundColor(.black)
+                    .shadow(color: shadowColor, radius: 2, x: 2, y: 2))
+                .foregroundColor(textColor)
         }
         .buttonStyle(.plain)
+    }
+}
+
+struct TextFormattingButton: View {
+    let action: () -> Void
+    let buttonImage: Image
+    
+    private let fontSize: CGFloat = 18
+    private let frameSize: CGFloat = 30
+    private let buttonColor: Color = Color.init(cgColor: CGColor(gray: 215/255, alpha: 1))
+    private let buttonShape: RoundedRectangle = RoundedRectangle(cornerRadius: 5)
+    
+    var body: some View {
+        Button(action: action) {
+            buttonImage
+                .font(.system(size: fontSize))
+                .frame(width: frameSize, height: frameSize)
+                .background(buttonShape
+                    .fill(buttonColor)
+                    .shadow(color: .black.opacity(0.3), radius: 2, x: 2, y: 2))
+                .foregroundStyle(.black)
+        }
+        .buttonStyle(.plain)
+        .disabled(true)
     }
 }
 
@@ -81,7 +112,6 @@ struct ContentView: View {
     @State private var currentMonth: Date = Date()
     @State private var dateTextMap: [String: String] = [:] // Dictionary to store text per date
     let calendar: Calendar = Calendar.current
-    let disableFormattingButtons: Bool = true
     let spacingBetweenTodayButtonAndCalendar: CGFloat = 15.0
     let todayButtonColor: Color = Color.init(cgColor: CGColor(red: 200/255, green: 220/255, blue: 255/255, alpha: 1))
     let calendarViewBackgroundColor: Color = Color.init(cgColor: CGColor(gray: 220/255, alpha: 1))
@@ -167,45 +197,27 @@ struct ContentView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 10))
 
                     HStack {
-                        Button(action: { toggleBold() }) {
-                            Text("B")
-                                .frame(width: 30, height: 30)
-                                .background(Color.gray.opacity(0.1))
-                                .clipShape(RoundedRectangle(cornerRadius: 5))
-                        }
-                        .disabled(disableFormattingButtons)
+                        TextFormattingButton(
+                            action: { toggleBold() },
+                            buttonImage: Image(systemName: "bold"))
                         
-                        Button(action: { toggleItalic() }) {
-                            Text("𝐼")
-                                .frame(width: 30, height: 30)
-                                .background(Color.gray.opacity(0.1))
-                                .clipShape(RoundedRectangle(cornerRadius: 5))
-                        }
-                        .disabled(disableFormattingButtons)
+                        TextFormattingButton(
+                            action: { toggleItalic() },
+                            buttonImage: Image(systemName: "italic"))
                         
-                        Button(action: { addBulletPoint() }) {
-                            Text("•")
-                                .frame(width: 30, height: 30)
-                                .background(Color.gray.opacity(0.1))
-                                .clipShape(RoundedRectangle(cornerRadius: 5))
-                        }
-                        .disabled(disableFormattingButtons)
+                        TextFormattingButton(
+                            action: { addBulletPoint() },
+                            buttonImage: Image(systemName: "list.bullet"))
                         
-                        Button(action: { addNumberedList() }) {
-                            Text("1.")
-                                .frame(width: 30, height: 30)
-                                .background(Color.gray.opacity(0.1))
-                                .clipShape(RoundedRectangle(cornerRadius: 5))
-                        }
-                        .disabled(disableFormattingButtons)
+                        TextFormattingButton(
+                            action: { addNumberedList() },
+                            buttonImage: Image(systemName: "list.number"))
                         
                         Spacer()
                         
                         Text("\(textContent.count)")
                             .foregroundColor(.gray)
                     }
-                    .buttonStyle(.plain)
-                    .disabled(true)
                     .padding(.top, 5)
                 }
                 .frame(width: (geometry.size.width - horizontalEmptySpace) * goldenRatio)
