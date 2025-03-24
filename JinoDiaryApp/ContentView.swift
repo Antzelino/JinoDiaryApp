@@ -43,6 +43,9 @@ struct DateUtils {
     }
 }
 
+let monthNavigationHStackPadding: CGFloat = 10
+let monthNavigationButtonSize: CGFloat = 30
+
 struct ContentView: View {
     @State private var textContent: String = ""
     @State private var selectedDate: Date = Date()
@@ -86,7 +89,7 @@ struct ContentView: View {
                     .buttonStyle(.plain)
                     
                     // Month-navigation and CalendarGrid in the grey box
-                    VStack {
+                    VStack (spacing: 0) {
                         HStack {
                             MonthNavigationButton(
                                 buttonAction: { changeMonth(by: -1) },
@@ -102,7 +105,7 @@ struct ContentView: View {
                                 buttonAction: { changeMonth(by: 1) },
                                 arrowDirection: .right)
                         }
-                        .padding(10)
+                        .padding(monthNavigationHStackPadding)
                         
                         CalendarGrid(selectedDate: $selectedDate,
                                      currentMonth: $currentMonth,
@@ -394,7 +397,8 @@ struct CalendarGrid: View {
                 }
             }
         }
-        .padding(.bottom, 10) // I just like how it looks, having this little space on the bottom
+        .padding(.vertical, 10) // I just like how it looks, having this little space on the bottom
+        .padding(.horizontal, monthNavigationButtonSize + monthNavigationHStackPadding) // I like how this perfectly lines up the grid to be between the navigation buttons, below them
     }
     
     private func generateWeeks(firstWeekday: Int, days: Int) -> [[Int?]] {
@@ -467,7 +471,7 @@ struct MonthNavigationButton: View {
     private let buttonColor: Color = Color.init(cgColor: CGColor(gray: 190/255, alpha: 1))
     private let fontSize: CGFloat = 15
     private let fontWeight: Font.Weight = .heavy
-    private let frameSize: CGFloat = 30
+    private let frameSize: CGFloat = monthNavigationButtonSize
     private let buttonShape: RoundedRectangle = RoundedRectangle(cornerRadius: 5)
     private let shadowColor: Color = Color.black.opacity(0.3)
     private let textColor: Color = Color.black
