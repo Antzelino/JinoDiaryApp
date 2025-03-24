@@ -405,7 +405,7 @@ struct CalendarGrid: View {
                 }
             }
         }
-        .padding(.bottom, 10)
+        .padding(.bottom, 10) // I just like how it looks, having this little space on the bottom
     }
     
     private func generateWeeks(firstWeekday: Int, days: Int) -> [[Int?]] {
