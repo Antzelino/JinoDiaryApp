@@ -50,7 +50,7 @@ struct ContentView: View {
     @State private var dateTextMap: [String: String] = [:] // Dictionary to store text per date
     let calendar: Calendar = Calendar.current
     let spacingBetweenTodayButtonAndCalendar: CGFloat = 15
-    let todayButtonColor: Color = Color.init(cgColor: CGColor(red: 200/255, green: 220/255, blue: 255/255, alpha: 1))
+    let todayButtonColor: Color = Color.init(red: 200/255, green: 220/255, blue: 255/255)
     let calendarViewBackgroundColor: Color = Color.init(cgColor: CGColor(gray: 220/255, alpha: 1))
     
     // Spacing and layout constants
