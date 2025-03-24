@@ -141,7 +141,7 @@ struct ContentView: View {
                 .padding(.bottom, spacingBetweenTodayButtonAndCalendar) // This helps bring it slightly higher which is a look I prefer
                 
                 // Text Editor (right side, goldenRatio)
-                VStack {
+                VStack (spacing: 7) {
                     HStack {
                         Text(DateUtils.formattedDateString(from: selectedDate))
                             .font(.title3)
@@ -220,7 +220,6 @@ struct ContentView: View {
                         Text("\(textContent.count)")
                             .foregroundColor(.gray)
                     }
-                    .padding(.top, 5)
                 }
                 .frame(width: (geometry.size.width - horizontalEmptySpace) * goldenRatio)
             }
