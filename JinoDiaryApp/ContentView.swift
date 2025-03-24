@@ -88,25 +88,9 @@ struct ContentView: View {
                     // Month-navigation and CalendarGrid in the grey box
                     VStack {
                         HStack {
-                            let buttonColor: Color = Color.init(cgColor: CGColor(gray: 190/255, alpha: 1))
-                            let fontSize: CGFloat = 15
-                            let fontWeight: Font.Weight = .heavy
-                            let frameSize: CGFloat = 30
-                            let buttonShape: RoundedRectangle = RoundedRectangle(cornerRadius: 5)
-                            let shadowColor: Color = Color.black.opacity(0.3)
-                            let textColor: Color = Color.black
-                            
-                            Button(action: {changeMonth(by: -1)} ) {
-                                Image(systemName: "chevron.left")
-                                    .font(.system(size: fontSize))
-                                    .fontWeight(fontWeight)
-                                    .frame(width: frameSize, height: frameSize)
-                                    .background(buttonShape
-                                        .fill(buttonColor)
-                                        .shadow(color: shadowColor, radius: 2, x: 2, y: 2))
-                                    .foregroundColor(textColor)
-                            }
-                            .buttonStyle(.plain)
+                            MonthNavigationButton(
+                                buttonAction: { changeMonth(by: -1) },
+                                arrowDirection: .left)
                             
                             Spacer()
                             
@@ -114,17 +98,9 @@ struct ContentView: View {
                             
                             Spacer()
                             
-                            Button(action: {changeMonth(by: 1)} ) {
-                                Image(systemName: "chevron.right")
-                                    .font(.system(size: fontSize))
-                                    .fontWeight(fontWeight)
-                                    .frame(width: frameSize, height: frameSize)
-                                    .background(buttonShape
-                                        .fill(buttonColor)
-                                        .shadow(color: shadowColor, radius: 2, x: 2, y: 2))
-                                    .foregroundColor(textColor)
-                            }
-                            .buttonStyle(.plain)
+                            MonthNavigationButton(
+                                buttonAction: { changeMonth(by: 1) },
+                                arrowDirection: .right)
                         }
                         .padding(10)
                         
@@ -481,6 +457,45 @@ struct CalendarGrid: View {
     
     private func dateKeyForDate(_ date: Date) -> String {
         return DateUtils.dateKey(from: date)
+    }
+}
+
+struct MonthNavigationButton: View {
+    let buttonAction: () -> Void
+    let arrowDirection: ArrowDirection
+    
+    private let buttonColor: Color = Color.init(cgColor: CGColor(gray: 190/255, alpha: 1))
+    private let fontSize: CGFloat = 15
+    private let fontWeight: Font.Weight = .heavy
+    private let frameSize: CGFloat = 30
+    private let buttonShape: RoundedRectangle = RoundedRectangle(cornerRadius: 5)
+    private let shadowColor: Color = Color.black.opacity(0.3)
+    private let textColor: Color = Color.black
+    
+    enum ArrowDirection {
+        case left
+        case right
+        
+        var systemImageName: String {
+            switch self {
+            case .left: return "chevron.left"
+            case .right: return "chevron.right"
+            }
+        }
+    }
+    
+    var body: some View {
+        Button(action: { buttonAction() }) {
+            Image(systemName: arrowDirection.systemImageName)
+                .font(.system(size: fontSize))
+                .fontWeight(fontWeight)
+                .frame(width: frameSize, height: frameSize)
+                .background(buttonShape
+                    .fill(buttonColor)
+                    .shadow(color: shadowColor, radius: 2, x: 2, y: 2))
+                .foregroundColor(textColor)
+        }
+        .buttonStyle(.plain)
     }
 }
 
