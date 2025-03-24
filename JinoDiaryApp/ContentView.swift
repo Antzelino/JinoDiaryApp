@@ -162,7 +162,8 @@ struct ContentView: View {
                                 saveTextForDate()
                             }
                             .lineSpacing(10)
-                            .background(Color.white)
+                            .colorScheme(.dark)
+                            .background(Color.black.opacity(0.87))
                     }
                     .clipShape(RoundedRectangle(cornerRadius: 10))
 
