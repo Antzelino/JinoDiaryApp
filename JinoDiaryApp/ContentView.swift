@@ -350,7 +350,7 @@ struct CalendarGrid: View {
             
             let daysInMonth = calendar.range(of: .day, in: .month, for: currentMonth)!
             let firstDayOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: currentMonth))!
-            let firstWeekday = (calendar.component(.weekday, from: firstDayOfMonth) - 2 + 7) % 7 // Monday start
+            let firstWeekday = (calendar.component(.weekday, from: firstDayOfMonth) + 5) % 7 // From Sunday=1, Monday=2... to Monday=0,... Sunday=6
             let weeks = generateWeeks(firstWeekday: firstWeekday, days: daysInMonth.count)
             
             ForEach(weeks, id: \.self) { week in
