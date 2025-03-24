@@ -141,58 +141,21 @@ struct ContentView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 10))
 
                     HStack {
-                        let fontSize: CGFloat = 18
-                        let frameSize: CGFloat = 30
-                        let buttonColor: Color = Color.init(red: 215/255, green: 215/255, blue: 215/255)
-                        let buttonShape: RoundedRectangle = RoundedRectangle(cornerRadius: 5)
+                        TextFormattingButton(
+                            buttonAction: { toggleBold() },
+                            formattingOption: .bold)
                         
-                        Button(action: { toggleBold() }) {
-                            Image(systemName: "bold")
-                                .font(.system(size: 18))
-                                .frame(width: frameSize, height: frameSize)
-                                .background(RoundedRectangle(cornerRadius: 5)
-                                    .fill(buttonColor)
-                                    .shadow(color: .black.opacity(0.3), radius: 2, x: 2, y: 2))
-                                .foregroundStyle(.black)
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(true)
+                        TextFormattingButton(
+                            buttonAction: { toggleItalic() },
+                            formattingOption: .italic)
                         
-                        Button(action: { toggleItalic() }) {
-                            Image(systemName: "italic")
-                                .font(.system(size: fontSize))
-                                .frame(width: frameSize, height: frameSize)
-                                .background(buttonShape
-                                    .fill(buttonColor)
-                                    .shadow(color: .black.opacity(0.3), radius: 2, x: 2, y: 2))
-                                .foregroundStyle(.black)
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(true)
+                        TextFormattingButton(
+                            buttonAction: { addBulletPoint() },
+                            formattingOption: .bulletList)
                         
-                        Button(action: { addBulletPoint() }) {
-                            Image(systemName: "list.bullet")
-                                .font(.system(size: fontSize))
-                                .frame(width: frameSize, height: frameSize)
-                                .background(buttonShape
-                                    .fill(buttonColor)
-                                    .shadow(color: .black.opacity(0.3), radius: 2, x: 2, y: 2))
-                                .foregroundStyle(.black)
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(true)
-                        
-                        Button(action: { addNumberedList() }) {
-                            Image(systemName: "list.number")
-                                .font(.system(size: fontSize))
-                                .frame(width: frameSize, height: frameSize)
-                                .background(buttonShape
-                                    .fill(buttonColor)
-                                    .shadow(color: .black.opacity(0.3), radius: 2, x: 2, y: 2))
-                                .foregroundStyle(.black)
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(true)
+                        TextFormattingButton(
+                            buttonAction: { addNumberedList() },
+                            formattingOption: .numberedList)
                         
                         Spacer()
                         
@@ -464,6 +427,7 @@ struct CalendarGrid: View {
     }
 }
 
+// Buttons for navigating previous/next month
 struct MonthNavigationButton: View {
     let buttonAction: () -> Void
     let arrowDirection: ArrowDirection
@@ -500,6 +464,47 @@ struct MonthNavigationButton: View {
                 .foregroundColor(textColor)
         }
         .buttonStyle(.plain)
+    }
+}
+
+// Buttons for formatting the text in TextEditor
+struct TextFormattingButton: View {
+    let buttonAction: () -> Void
+    let formattingOption: TextFormat
+    
+    private let fontSize: CGFloat = 18
+    private let frameSize: CGFloat = 30
+    private let buttonColor: Color = Color.init(cgColor: CGColor(gray: 215/255, alpha: 1))
+    private let buttonShape: RoundedRectangle = RoundedRectangle(cornerRadius: 5)
+    
+    enum TextFormat {
+        case bold
+        case italic
+        case bulletList
+        case numberedList
+        
+        var systemImageName: String {
+            switch self {
+            case .bold: return "bold"
+            case .italic: return "italic"
+            case .bulletList: return "list.bullet"
+            case .numberedList: return "list.number"
+            }
+        }
+    }
+    
+    var body: some View {
+        Button(action: { buttonAction() }) {
+            Image(systemName: formattingOption.systemImageName)
+                .font(.system(size: fontSize))
+                .frame(width: frameSize, height: frameSize)
+                .background(buttonShape
+                    .fill(buttonColor)
+                    .shadow(color: .black.opacity(0.3), radius: 2, x: 2, y: 2))
+                .foregroundStyle(.black)
+        }
+        .buttonStyle(.plain)
+        .disabled(true)
     }
 }
 
