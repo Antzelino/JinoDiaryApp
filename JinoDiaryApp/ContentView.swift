@@ -340,10 +340,10 @@ struct CalendarGrid: View {
     let calendar = Calendar.current
     
     @State private var hoveredDay: Int? = nil // Track the hovered day
-    @State private var calendarGridDensity: CGFloat = 90 // I find the value 90 makes the grid as dense as I like
+    @State private var calendarGridDensity: CGFloat = 80 // I find the value 90 makes the grid as dense as I like
     
     var body: some View {
-        VStack(spacing: 5) {
+        VStack(spacing: 0) {
             let cellWidth = (availableWidth - calendarGridDensity) / 7
             let circleSize = cellWidth * 0.75
     
@@ -359,7 +359,7 @@ struct CalendarGrid: View {
                         .foregroundStyle(weekend.contains(day) ? weekendColor : Color.black)
                         .frame(width: cellWidth, height: cellWidth, alignment: .center)
                 }
-            }
+            }.padding(.bottom, 5)
             
             let daysInMonth = calendar.range(of: .day, in: .month, for: currentMonth)!
             let firstDayOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: currentMonth))!
