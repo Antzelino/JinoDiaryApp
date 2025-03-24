@@ -82,7 +82,7 @@ struct ContentView: View {
     @State private var dateTextMap: [String: String] = [:] // Dictionary to store text per date
     let calendar: Calendar = Calendar.current
     let disableFormattingButtons: Bool = true
-    let spacingBetweenButtonAndCalendarView: CGFloat = 15.0
+    let spacingBetweenTodayButtonAndCalendar: CGFloat = 15.0
     let todayButtonColor: Color = Color.init(cgColor: CGColor(red: 200/255, green: 220/255, blue: 255/255, alpha: 1))
     let calendarViewBackgroundColor: Color = Color.init(cgColor: CGColor(gray: 220/255, alpha: 1))
     
@@ -103,7 +103,7 @@ struct ContentView: View {
         GeometryReader { geometry in
             HStack(spacing: topLevelSpacing) {
                 // Calendar View (left side, 1 - goldenRatio)
-                VStack(spacing: spacingBetweenButtonAndCalendarView) {
+                VStack(spacing: spacingBetweenTodayButtonAndCalendar) {
                     // Go To Today Button above the grey calendar box
                     Button(action: { goToToday() }) {
                         Text("Go to Today")
@@ -118,7 +118,7 @@ struct ContentView: View {
                     .help(Text(DateUtils.dayMonthYearString(from: selectedDate))) // Hover tooltip shows today's date
                     .buttonStyle(.plain)
                     
-                    // Navigation and Calendar in the grey box
+                    // Month-navigation and CalendarGrid in the grey box
                     VStack {
                         HStack {
                             ArrowButton(direction: .left, action: { changeMonth(by: -1) })
@@ -133,18 +133,17 @@ struct ContentView: View {
                         }
                         .padding(10)
                         
-                        CalendarView(selectedDate: $selectedDate,
+                        CalendarGrid(selectedDate: $selectedDate,
                                      currentMonth: $currentMonth,
                                      dateTextMap: $dateTextMap,
                                      textContent: $textContent,
                                      availableWidth: (geometry.size.width - horizontalEmptySpace) * leftSideRatio)
-                        .padding(.bottom, 10)
                     }
                     .background(RoundedRectangle(cornerRadius: 10)
                         .fill(calendarViewBackgroundColor))
                 }
                 .frame(width: (geometry.size.width - horizontalEmptySpace) * leftSideRatio)
-                .padding(.bottom, spacingBetweenButtonAndCalendarView) // This helps bring it slightly higher which look I prefer
+                .padding(.bottom, spacingBetweenTodayButtonAndCalendar) // This helps bring it slightly higher which look I prefer
                 
                 // Text Editor (right side, goldenRatio)
                 VStack {
@@ -319,7 +318,7 @@ struct ContentView: View {
     }
 }
 
-struct CalendarView: View {
+struct CalendarGrid: View {
     @Binding var selectedDate: Date
     @Binding var currentMonth: Date
     @Binding var dateTextMap: [String: String]
@@ -336,9 +335,9 @@ struct CalendarView: View {
             let circleSize = cellWidth * 0.75
     
             HStack(spacing: 0) {
-                let days = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
-                let weekend = days[5...6]
+                let weekend = ["Sa", "Su"]
                 let weekendColor: Color = Color(red: 230/255, green: 70/255, blue: 70/255)
+                let days = ["Mo", "Tu", "We", "Th", "Fr"] + weekend
                 
                 ForEach(days, id: \.self) { day in
                     Text(day)
@@ -404,6 +403,7 @@ struct CalendarView: View {
                 }
             }
         }
+        .padding(.bottom, 10)
     }
     
     private func generateWeeks(firstWeekday: Int, days: Int) -> [[Int?]] {
