@@ -379,12 +379,13 @@ struct CalendarGrid: View {
                                 
                                 // Day number
                                 Text("\(day)")
-                                    .font(.system(size: 15))
+                                    .font(.system(
+                                        size: 15,
+                                        weight: hasContent(day: day) ? .bold : .regular)) // Bold if has content, regular if not
                                     .foregroundColor(hasContent(day: day) ? .blue : .black) // Blue if has content, black if not
-                                    .bold(hasContent(day: day)) // Bold if has content
                             }
                             .frame(width: cellWidth, height: cellWidth)
-                            .contentShape(Rectangle()) // Hitbox is now a square matching the cell
+                            .contentShape(Rectangle()) // Set hitbox to square matching the cell, even though hover highlight is a smaller circle. I think it looks nicer
                             .onTapGesture {
                                 var components = calendar.dateComponents([.year, .month], from: currentMonth)
                                 components.day = day
@@ -412,7 +413,7 @@ struct CalendarGrid: View {
         var currentWeek: [Int?] = Array(repeating: nil, count: 7)
         var dayCount = 1
         
-        for i in 0..<42 { // Max 6 weeks (42 days)
+        for i in 0..<42 { // Grid of 6x7, max 6 weeks (42 days)
             let dayIndex = i % 7
             
             if i >= firstWeekday && dayCount <= days {
