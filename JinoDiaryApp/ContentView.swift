@@ -91,19 +91,18 @@ struct ContentView: View {
                     // Month-navigation and CalendarGrid in the grey box
                     VStack (spacing: 0) {
                         HStack {
-                            MonthNavigationButton(
-                                buttonAction: { changeMonth(by: -1) },
-                                arrowDirection: .left)
+                            MonthNavigationButton(buttonAction: { changeMonth(by: -1) },
+                                                  arrowDirection: .left)
                             
                             Spacer()
                             
-                            Text(DateUtils.monthYearString(from: currentMonth)).font(.system(size: 20))
+                            Text(DateUtils.monthYearString(from: currentMonth))
+                                .font(.system(size: 20))
                             
                             Spacer()
                             
-                            MonthNavigationButton(
-                                buttonAction: { changeMonth(by: 1) },
-                                arrowDirection: .right)
+                            MonthNavigationButton(buttonAction: { changeMonth(by: 1) },
+                                                  arrowDirection: .right)
                         }
                         .padding(monthNavigationHStackPadding)
                         
@@ -124,6 +123,7 @@ struct ContentView: View {
                     HStack {
                         Text(DateUtils.formattedDateString(from: selectedDate))
                             .font(.title3)
+                        
                         Spacer()
                     }
 
@@ -141,21 +141,17 @@ struct ContentView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 10))
 
                     HStack {
-                        TextFormattingButton(
-                            buttonAction: { toggleBold() },
-                            formattingOption: .bold)
+                        TextFormattingButton(buttonAction: { toggleBold() },
+                                             formattingOption: .bold)
                         
-                        TextFormattingButton(
-                            buttonAction: { toggleItalic() },
-                            formattingOption: .italic)
+                        TextFormattingButton(buttonAction: { toggleItalic() },
+                                             formattingOption: .italic)
                         
-                        TextFormattingButton(
-                            buttonAction: { addBulletPoint() },
-                            formattingOption: .bulletList)
+                        TextFormattingButton(buttonAction: { addBulletPoint() },
+                                             formattingOption: .bulletList)
                         
-                        TextFormattingButton(
-                            buttonAction: { addNumberedList() },
-                            formattingOption: .numberedList)
+                        TextFormattingButton(buttonAction: { addNumberedList() },
+                                             formattingOption: .numberedList)
                         
                         Spacer()
                         
