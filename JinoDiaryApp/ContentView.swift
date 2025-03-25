@@ -244,32 +244,36 @@ struct ContentView: View {
     
     // Formatting Functions
     private func toggleBold() {
-        if textContent.contains("**") {
-            textContent = textContent.replacingOccurrences(of: "**", with: "")
-        } else {
-            textContent = "**" + textContent + "**"
-        }
+        // TODO: Correct implementation of toggleBold()
+//        if textContent.contains("**") {
+//            textContent = textContent.replacingOccurrences(of: "**", with: "")
+//        } else {
+//            textContent = "**" + textContent + "**"
+//        }
     }
     
     private func toggleItalic() {
-        if textContent.contains("_") {
-            textContent = textContent.replacingOccurrences(of: "_", with: "")
-        } else {
-            textContent = "_" + textContent + "_"
-        }
+        // TODO: Correct implementation of toggleItalic()
+//        if textContent.contains("_") {
+//            textContent = textContent.replacingOccurrences(of: "_", with: "")
+//        } else {
+//            textContent = "_" + textContent + "_"
+//        }
     }
     
     private func addBulletPoint() {
-        textContent += "\n• "
+        // TODO: Correct implementation of addBulletPoint()
+//        textContent += "\n• "
     }
     
     private func addNumberedList() {
-        let lines = textContent.split(separator: "\n")
-        var newText = ""
-        for (index, line) in lines.enumerated() {
-            newText += "\(index + 1). \(line)\n"
-        }
-        textContent = newText
+        // TODO: Correct implementation of addNumberedList()
+//        let lines = textContent.split(separator: "\n")
+//        var newText = ""
+//        for (index, line) in lines.enumerated() {
+//            newText += "\(index + 1). \(line)\n"
+//        }
+//        textContent = newText
     }
 }
 
