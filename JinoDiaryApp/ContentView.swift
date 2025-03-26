@@ -60,7 +60,7 @@ struct ContentView: View {
     let topLevelSpacing: CGFloat = 20
     let topLevelHorizontalPadding: CGFloat = 20
     let topLevelVerticalPadding: CGFloat = 15
-    let horizontalEmptySpace: CGFloat // How much of the width is spacing or padding, rather than some kind of content
+    let horizontalEmptySpace: CGFloat // Amount of width that's spacing or padding
     init() {
         horizontalEmptySpace = 1 * topLevelSpacing + 2 * topLevelHorizontalPadding
     }
