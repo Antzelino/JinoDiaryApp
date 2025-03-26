@@ -128,15 +128,25 @@ struct ContentView: View {
                     }
 
                     ZStack {
+                        if self.textContent.isEmpty { // Hacky way for placeholder text
+                            TextEditor(text: .constant("Start writing..."))
+                                .font(.system(size: 18))
+                                .foregroundStyle(.gray)
+                                .disabled(true)
+                                .padding(.horizontal, 15)
+                                .padding(.vertical, 18)
+                                .background(.white)
+                        }
                         TextEditor(text: $textContent)
                             .font(.system(size: 18))
+                            .lineSpacing(10)
                             .padding(.horizontal, 15)
                             .padding(.vertical, 18)
+                            .opacity(self.textContent.isEmpty ? 0.25 : 1) // Hacky way for placeholder text
+                            .background(self.textContent.isEmpty ? .clear : .white) // Hacky way for placeholder text
                             .onChange(of: textContent) {
                                 saveTextForDate()
                             }
-                            .lineSpacing(10)
-                            .background(Color.white)
                     }
                     .clipShape(RoundedRectangle(cornerRadius: 10))
 
