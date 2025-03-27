@@ -292,7 +292,7 @@ struct CalendarGrid: View {
     let calendar = Calendar.current
     
     @State private var hoveredDay: Int? = nil // Track the hovered day
-    @State private var calendarGridDensity: CGFloat = 80 // I find the value 90 makes the grid as dense as I like
+    @State private var calendarGridDensity: CGFloat = 80 // I find the value 80 makes the grid as dense as I like
     
     var body: some View {
         VStack(spacing: 0) {
