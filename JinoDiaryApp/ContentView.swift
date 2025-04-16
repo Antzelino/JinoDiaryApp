@@ -1,4 +1,5 @@
 import SwiftUI
+import RichTextKit
 
 // Dedicated struct for date formatting utilities
 struct DateUtils {
@@ -51,6 +52,7 @@ struct ContentView: View {
     @State private var selectedDate: Date = Date()
     @State private var currentMonth: Date = Date()
     @State private var dateTextMap: [String: String] = [:] // Dictionary to store text per date
+    @State private var richText: NSAttributedString = NSAttributedString(string: "")
     let calendar: Calendar = Calendar.current
     let spacingBetweenTodayButtonAndCalendar: CGFloat = 15
     let todayButtonColor: Color = Color.init(red: 200/255, green: 220/255, blue: 255/255)
@@ -128,23 +130,24 @@ struct ContentView: View {
                     }
 
                     ZStack {
-                        if self.textContent.isEmpty { // Hacky way for placeholder text
-                            TextEditor(text: .constant("Start writing..."))
+                        if self.textContent.isEmpty {
+                            Text("Start writing...")
                                 .font(.system(size: 18))
                                 .foregroundStyle(.gray)
-                                .disabled(true)
                                 .padding(.horizontal, 15)
                                 .padding(.vertical, 18)
                                 .background(.white)
                         }
-                        TextEditor(text: $textContent)
+                        RichTextEditor(text: $richText)
                             .font(.system(size: 18))
                             .lineSpacing(10)
                             .padding(.horizontal, 15)
                             .padding(.vertical, 18)
-                            .opacity(self.textContent.isEmpty ? 0.25 : 1) // Hacky way for placeholder text
-                            .background(self.textContent.isEmpty ? .clear : .white) // Hacky way for placeholder text
-                            .onChange(of: textContent) {
+                            .opacity(self.textContent.isEmpty ? 0.25 : 1)
+                            .background(self.textContent.isEmpty ? .clear : .white)
+                            .onChange(of: richText) { _ in
+                                // Convert NSAttributedString to String for saving
+                                textContent = richText.string
                                 saveTextForDate()
                             }
                     }
@@ -200,11 +203,14 @@ struct ContentView: View {
     
     private func updateTextContent() {
         let dateKey = DateUtils.dateKey(from: selectedDate)
-        textContent = dateTextMap[dateKey] ?? ""
+        let savedText = dateTextMap[dateKey] ?? ""
+        textContent = savedText
+        richText = NSAttributedString(string: savedText)
     }
     
     private func saveTextForDate() {
         let dateKey = DateUtils.dateKey(from: selectedDate)
+        textContent = richText.string
         if textContent.isEmpty {
             dateTextMap.removeValue(forKey: dateKey) // Remove entry if text is empty
         } else {
@@ -250,36 +256,37 @@ struct ContentView: View {
     
     // Formatting Functions
     private func toggleBold() {
-        // TODO: Correct implementation of toggleBold()
-//        if textContent.contains("**") {
-//            textContent = textContent.replacingOccurrences(of: "**", with: "")
-//        } else {
-//            textContent = "**" + textContent + "**"
-//        }
+        let range = NSRange(location: 0, length: richText.length)
+        let isBold = richText.attributes(at: 0, effectiveRange: nil)[.font] as? UIFont == .boldSystemFont(ofSize: 18)
+        let newFont = isBold ? UIFont.systemFont(ofSize: 18) : UIFont.boldSystemFont(ofSize: 18)
+        let mutableText = NSMutableAttributedString(attributedString: richText)
+        mutableText.addAttribute(.font, value: newFont, range: range)
+        richText = mutableText
     }
     
     private func toggleItalic() {
-        // TODO: Correct implementation of toggleItalic()
-//        if textContent.contains("_") {
-//            textContent = textContent.replacingOccurrences(of: "_", with: "")
-//        } else {
-//            textContent = "_" + textContent + "_"
-//        }
+        let range = NSRange(location: 0, length: richText.length)
+        let isItalic = richText.attributes(at: 0, effectiveRange: nil)[.font] as? UIFont == .italicSystemFont(ofSize: 18)
+        let newFont = isItalic ? UIFont.systemFont(ofSize: 18) : UIFont.italicSystemFont(ofSize: 18)
+        let mutableText = NSMutableAttributedString(attributedString: richText)
+        mutableText.addAttribute(.font, value: newFont, range: range)
+        richText = mutableText
     }
     
     private func addBulletPoint() {
-        // TODO: Correct implementation of addBulletPoint()
-//        textContent += "\n• "
+        let bullet = "• "
+        let mutableText = NSMutableAttributedString(attributedString: richText)
+        mutableText.append(NSAttributedString(string: bullet))
+        richText = mutableText
     }
     
     private func addNumberedList() {
-        // TODO: Correct implementation of addNumberedList()
-//        let lines = textContent.split(separator: "\n")
-//        var newText = ""
-//        for (index, line) in lines.enumerated() {
-//            newText += "\(index + 1). \(line)\n"
-//        }
-//        textContent = newText
+        let lines = richText.string.split(separator: "\n")
+        let mutableText = NSMutableAttributedString()
+        for (index, line) in lines.enumerated() {
+            mutableText.append(NSAttributedString(string: "\(index + 1). \(line)\n"))
+        }
+        richText = mutableText
     }
 }
 
@@ -429,7 +436,9 @@ struct CalendarGrid: View {
     
     private func updateTextContent() {
         let dateKey = DateUtils.dateKey(from: selectedDate)
-        textContent = dateTextMap[dateKey] ?? ""
+        let savedText = dateTextMap[dateKey] ?? ""
+        textContent = savedText
+        richText = NSAttributedString(string: savedText)
     }
     
     private func dateKeyForDate(_ date: Date) -> String {
@@ -514,7 +523,6 @@ struct TextFormattingButton: View {
                 .foregroundStyle(.black)
         }
         .buttonStyle(.plain)
-        .disabled(true)
     }
 }
 
