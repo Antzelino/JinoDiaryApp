@@ -49,6 +49,7 @@ struct DateUtils {
 struct FormattingState {
     var isBold: Bool = false
     var isItalic: Bool = false
+    var isBulleted: Bool = false
 }
 
 let monthNavigationHStackPadding: CGFloat = 10
@@ -119,7 +120,8 @@ struct ContentView: View {
                         CalendarGrid(selectedDate: $selectedDate,
                                      currentMonth: $currentMonth,
                                      dateTextMap: $dateTextMap,
-                                     availableWidth: (geometry.size.width - horizontalEmptySpace) * leftSideRatio)
+                                     availableWidth: (geometry.size.width - horizontalEmptySpace) * leftSideRatio,
+                                     onDaySelection: { textEditorController.focusEditor() })
                     }
                     .background(RoundedRectangle(cornerRadius: 10)
                         .fill(calendarViewBackgroundColor))
@@ -167,11 +169,9 @@ struct ContentView: View {
                                              formattingOption: .italic,
                                              isActive: formattingState.isItalic)
                         
-                        TextFormattingButton(buttonAction: { addBulletPoint() },
-                                             formattingOption: .bulletList)
-                        
-                        TextFormattingButton(buttonAction: { addNumberedList() },
-                                             formattingOption: .numberedList)
+                        TextFormattingButton(buttonAction: { toggleBulletedList() },
+                                             formattingOption: .bulletList,
+                                             isActive: formattingState.isBulleted)
                         
                         Spacer()
                         
@@ -187,6 +187,7 @@ struct ContentView: View {
         .frame(minWidth: 1200, minHeight: 650)
         .onAppear {
             loadSavedData()
+            textEditorController.focusEditor()
         }
         .onChangeCompat(of: selectedDate) {
             updateTextContent()
@@ -200,6 +201,7 @@ struct ContentView: View {
             if let firstDayOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: currentMonth)) {
                 selectedDate = firstDayOfMonth
                 updateTextContent()
+                textEditorController.focusEditor()
             }
         }
     }
@@ -209,6 +211,7 @@ struct ContentView: View {
         currentMonth = today
         selectedDate = today
         updateTextContent()
+        textEditorController.focusEditor()
     }
     
     private func updateTextContent() {
@@ -218,6 +221,7 @@ struct ContentView: View {
         } else {
             attributedText = NSAttributedString(string: "")
         }
+        textEditorController.focusEditor()
     }
     
     private func saveTextForDate() {
@@ -288,19 +292,19 @@ struct ContentView: View {
         textEditorController.toggleItalic()
     }
     
-    private func addBulletPoint() {
-        textEditorController.insertBullet()
+    private func toggleBulletedList() {
+        textEditorController.toggleBulletedList()
     }
     
-    private func addNumberedList() {
-        textEditorController.insertNumberedList()
-    }
 }
 
 #if os(macOS)
 final class FormattingTextView: NSTextView {
     var onBoldCommand: (() -> Void)?
     var onItalicCommand: (() -> Void)?
+    var onIndentCommand: (() -> Bool)?
+    var onOutdentCommand: (() -> Bool)?
+    var onNewlineCommand: (() -> Bool)?
 
     override func keyDown(with event: NSEvent) {
         if event.modifierFlags.contains(.command), let key = event.charactersIgnoringModifiers?.lowercased() {
@@ -316,6 +320,27 @@ final class FormattingTextView: NSTextView {
             }
         }
         super.keyDown(with: event)
+    }
+
+    override func insertTab(_ sender: Any?) {
+        if onIndentCommand?() == true {
+            return
+        }
+        super.insertTab(sender)
+    }
+
+    override func insertBacktab(_ sender: Any?) {
+        if onOutdentCommand?() == true {
+            return
+        }
+        super.insertBacktab(sender)
+    }
+
+    override func insertNewline(_ sender: Any?) {
+        if onNewlineCommand?() == true {
+            return
+        }
+        super.insertNewline(sender)
     }
 }
 
@@ -349,12 +374,22 @@ struct RichTextEditor: NSViewRepresentable {
         textView.textContainer?.widthTracksTextView = true
         textView.backgroundColor = .white
         textView.textStorage?.setAttributedString(text)
+        controller.refreshBulletStyling()
         textView.typingAttributes = defaultTypingAttributes()
         textView.onBoldCommand = { [weak controller] in
             controller?.toggleBold()
         }
         textView.onItalicCommand = { [weak controller] in
             controller?.toggleItalic()
+        }
+        textView.onIndentCommand = { [weak controller] in
+            return controller?.indentSelection() ?? false
+        }
+        textView.onOutdentCommand = { [weak controller] in
+            return controller?.outdentSelection() ?? false
+        }
+        textView.onNewlineCommand = { [weak controller] in
+            return controller?.handleNewline() ?? false
         }
 
         controller.textView = textView
@@ -387,6 +422,7 @@ struct RichTextEditor: NSViewRepresentable {
         }
         context.coordinator.isUpdatingFromParent = true
         textView.textStorage?.setAttributedString(text)
+        controller.refreshBulletStyling()
         textView.typingAttributes = defaultTypingAttributes()
         context.coordinator.isUpdatingFromParent = false
         let state = formattingState(for: textView)
@@ -407,38 +443,83 @@ struct RichTextEditor: NSViewRepresentable {
     private func formattingState(for textView: NSTextView) -> FormattingState {
         let fontManager = NSFontManager.shared
         let selectedRange = textView.selectedRange()
+        let fontState: (Bool, Bool)
+        let string = textView.string as NSString
         if selectedRange.length == 0 {
             let font = (textView.typingAttributes[.font] as? NSFont) ?? textView.font ?? defaultFont
             let traits = fontManager.traits(of: font)
-            return FormattingState(isBold: traits.contains(.boldFontMask),
-                                   isItalic: traits.contains(.italicFontMask))
-        }
-        var boldValue: Bool?
-        var italicValue: Bool?
-        var boldMixed = false
-        var italicMixed = false
-        textView.textStorage?.enumerateAttribute(.font, in: selectedRange, options: []) { value, _, stop in
-            let baseFont = (value as? NSFont) ?? textView.font ?? defaultFont
-            let traits = fontManager.traits(of: baseFont)
-            let isBold = traits.contains(.boldFontMask)
-            let isItalic = traits.contains(.italicFontMask)
-            if let existing = boldValue {
-                if existing != isBold { boldMixed = true }
+            let caretBeforeBullet = selectedRange.location < string.length &&
+                ListFormatting.isBulletMarker(at: selectedRange.location, in: string)
+            let caretAfterBullet = selectedRange.location > 0 &&
+                ListFormatting.isBulletMarker(at: selectedRange.location - 1, in: string)
+            if caretBeforeBullet {
+                fontState = (false, false)
+            } else if caretAfterBullet {
+                fontState = (false, false)
             } else {
-                boldValue = isBold
+                fontState = (traits.contains(.boldFontMask), traits.contains(.italicFontMask))
             }
-            if let existingItalic = italicValue {
-                if existingItalic != isItalic { italicMixed = true }
-            } else {
-                italicValue = isItalic
+        } else {
+            var boldValue: Bool?
+            var italicValue: Bool?
+            var boldMixed = false
+            var italicMixed = false
+            let storage = textView.textStorage
+            string.enumerateSubstrings(in: selectedRange, options: .byComposedCharacterSequences) { _, substringRange, _, stop in
+                if ListFormatting.isBulletMarker(at: substringRange.location, in: string) {
+                    return
+                }
+                let baseFont = (storage?.attribute(.font, at: substringRange.location, effectiveRange: nil) as? NSFont) ?? textView.font ?? defaultFont
+                let traits = fontManager.traits(of: baseFont)
+                let isBold = traits.contains(.boldFontMask)
+                let isItalic = traits.contains(.italicFontMask)
+                if let existing = boldValue {
+                    if existing != isBold { boldMixed = true }
+                } else {
+                    boldValue = isBold
+                }
+                if let existingItalic = italicValue {
+                    if existingItalic != isItalic { italicMixed = true }
+                } else {
+                    italicValue = isItalic
+                }
+                if boldMixed && italicMixed {
+                    stop.pointee = true
+                }
             }
-            if boldMixed && italicMixed {
-                stop.pointee = true
-            }
+            let bold = boldMixed ? false : (boldValue ?? false)
+            let italic = italicMixed ? false : (italicValue ?? false)
+            fontState = (bold, italic)
         }
-        let bold = boldMixed ? false : (boldValue ?? false)
-        let italic = italicMixed ? false : (italicValue ?? false)
-        return FormattingState(isBold: bold, isItalic: italic)
+        let isBulleted = isSelectionBulleted(textView: textView, selection: selectedRange)
+        return FormattingState(isBold: fontState.0,
+                               isItalic: fontState.1,
+                               isBulleted: isBulleted)
+    }
+
+
+    private func isSelectionBulleted(textView: NSTextView,
+                                     selection: NSRange) -> Bool {
+        guard let textStorage = textView.textStorage else {
+            return false
+        }
+        let string = textStorage.string as NSString
+        if string.length == 0 {
+            return false
+        }
+        let clampedLocation = min(selection.location, string.length)
+        let targetRange = string.paragraphRange(for: NSRange(location: clampedLocation, length: selection.length))
+        if targetRange.length == 0 {
+            return false
+        }
+        var allBulleted = true
+        var anyBulleted = false
+        string.enumerateSubstrings(in: targetRange, options: .byParagraphs) { _, subrange, _, _ in
+            let hasBullet = ListFormatting.hasBullet(in: string, paragraphRange: subrange)
+            allBulleted = allBulleted && hasBullet
+            anyBulleted = anyBulleted || hasBullet
+        }
+        return allBulleted && anyBulleted
     }
 
     class Coordinator: NSObject, NSTextViewDelegate {
@@ -468,17 +549,161 @@ struct RichTextEditor: NSViewRepresentable {
         func textViewDidChangeSelection(_ notification: Notification) {
             guard let textView = notification.object as? NSTextView else { return }
             parent.controller.textView = textView
+            parent.controller.ensureNeutralTypingAttributesIfNeeded(for: textView)
             let parent = parent
             DispatchQueue.main.async {
                 parent.onFormattingStateChange(parent.formattingState(for: textView))
             }
         }
+
+        func textView(_ textView: NSTextView,
+                       shouldChangeTextIn affectedRange: NSRange,
+                       replacementString: String?) -> Bool {
+            parent.controller.textView = textView
+            return parent.controller.shouldAllowChange(in: affectedRange,
+                                                       replacementString: replacementString,
+                                                       textView: textView)
+        }
+    }
+}
+
+private struct ListFormatting {
+    static let bulletCharacter = "・"
+    static let bulletInsertionString = bulletCharacter
+    private static let bulletScalar: unichar = 0x30FB
+    private static let legacyBulletScalar: unichar = 0x2022
+
+    struct PrefixMatch {
+        let indentLength: Int
+        let markerLength: Int
+        let trailingWhitespaceLength: Int
+
+        var markerStartOffset: Int { indentLength }
+        var markerRange: NSRange { NSRange(location: indentLength, length: markerLength) }
+        var removalRange: NSRange {
+            NSRange(location: indentLength, length: markerLength + trailingWhitespaceLength)
+        }
+    }
+
+    static func bulletMatch(in text: NSString, paragraphRange: NSRange) -> PrefixMatch? {
+        guard paragraphRange.length > 0 else { return nil }
+        let indent = indentLength(in: text, paragraphRange: paragraphRange)
+        guard indent < paragraphRange.length else { return nil }
+        let bulletLocation = paragraphRange.location + indent
+        guard bulletLocation < text.length else { return nil }
+        let character = text.character(at: bulletLocation)
+        if character == bulletScalar {
+            return PrefixMatch(indentLength: indent,
+                               markerLength: bulletInsertionString.utf16.count,
+                               trailingWhitespaceLength: 0)
+        } else if character == legacyBulletScalar {
+            var trailingWhitespace = 0
+            let nextIndex = bulletLocation + 1
+            if nextIndex < paragraphRange.location + paragraphRange.length {
+                let nextChar = text.character(at: nextIndex)
+                if nextChar == 9 || nextChar == 32 {
+                    trailingWhitespace = 1
+                }
+            }
+            return PrefixMatch(indentLength: indent,
+                               markerLength: 1,
+                               trailingWhitespaceLength: trailingWhitespace)
+        }
+        return nil
+    }
+
+    static func hasBullet(in text: NSString, paragraphRange: NSRange) -> Bool {
+        bulletMatch(in: text, paragraphRange: paragraphRange) != nil
+    }
+
+    static func bulletMarkerRange(in text: NSString, paragraphRange: NSRange) -> NSRange? {
+        guard let match = bulletMatch(in: text, paragraphRange: paragraphRange) else { return nil }
+        return NSRange(location: paragraphRange.location + match.markerStartOffset,
+                       length: match.markerLength)
+    }
+
+    static func bulletRemovalRange(in text: NSString, paragraphRange: NSRange) -> NSRange? {
+        guard let match = bulletMatch(in: text, paragraphRange: paragraphRange) else { return nil }
+        return NSRange(location: paragraphRange.location + match.markerStartOffset,
+                       length: match.markerLength + match.trailingWhitespaceLength)
+    }
+
+
+    static func indentRange(in text: NSString, paragraphRange: NSRange) -> NSRange {
+        let length = indentLength(in: text, paragraphRange: paragraphRange)
+        return NSRange(location: paragraphRange.location, length: length)
+    }
+
+    private static func indentLength(in text: NSString, paragraphRange: NSRange) -> Int {
+        guard paragraphRange.length > 0 else { return 0 }
+        var offset = 0
+        while offset < paragraphRange.length {
+            let char = text.character(at: paragraphRange.location + offset)
+            if char == 9 || char == 32 { // tab or space
+                offset += 1
+            } else {
+                break
+            }
+        }
+        return offset
+    }
+
+    static func isBulletMarker(at location: Int, in text: NSString) -> Bool {
+        guard location >= 0, location < text.length else { return false }
+        let char = text.character(at: location)
+        guard char == bulletScalar || char == legacyBulletScalar else { return false }
+        var index = location - 1
+        while index >= 0 {
+            let previous = text.character(at: index)
+            if previous == 10 || previous == 13 { // newline
+                break
+            }
+            if previous != 9 && previous != 32 { // non-whitespace before bullet
+                return false
+            }
+            index -= 1
+        }
+        return true
+    }
+
+    @discardableResult
+    static func normalizeBullet(in textStorage: NSTextStorage,
+                                paragraphRange: NSRange) -> PrefixMatch? {
+        func currentMatch() -> PrefixMatch? {
+            let updatedString = textStorage.string as NSString
+            return bulletMatch(in: updatedString, paragraphRange: paragraphRange)
+        }
+
+        guard var match = currentMatch() else { return nil }
+        var updatedString = textStorage.string as NSString
+        let markerLocation = paragraphRange.location + match.markerStartOffset
+        if markerLocation >= updatedString.length {
+            return nil
+        }
+        let currentChar = updatedString.character(at: markerLocation)
+        if currentChar != bulletScalar {
+            textStorage.replaceCharacters(in: NSRange(location: markerLocation, length: match.markerLength),
+                                          with: bulletInsertionString)
+        }
+        if match.trailingWhitespaceLength > 0 {
+            let trailingLocation = markerLocation + match.markerLength
+            let safeLength = min(match.trailingWhitespaceLength,
+                                 max(0, textStorage.length - trailingLocation))
+            if safeLength > 0 {
+                textStorage.deleteCharacters(in: NSRange(location: trailingLocation, length: safeLength))
+            }
+        }
+        updatedString = textStorage.string as NSString
+        return bulletMatch(in: updatedString, paragraphRange: paragraphRange)
     }
 }
 
 /// Controls formatting commands sent from SwiftUI buttons to the underlying NSTextView.
 final class RichTextEditorController: ObservableObject {
-    weak var textView: NSTextView?
+    weak var textView: NSTextView? {
+        didSet { applyPendingFocusIfNeeded() }
+    }
+    private var pendingFocusRequest = false
 
     func toggleBold() {
         applyFontTrait(.boldFontMask)
@@ -488,49 +713,63 @@ final class RichTextEditorController: ObservableObject {
         applyFontTrait(.italicFontMask)
     }
 
-    func insertBullet() {
-        applyListPrefix("• ")
+    func toggleBulletedList() {
+        guard let textView, let textStorage = textView.textStorage else { return }
+        let selection = textView.selectedRange()
+        let string = textStorage.string as NSString
+        if string.length == 0 {
+            insertBulletAtCursor(at: selection.location)
+            return
+        }
+        let clampedLocation = min(selection.location, string.length)
+        let safeLength = min(selection.length, max(0, string.length - clampedLocation))
+        let baseRange = NSRange(location: clampedLocation, length: safeLength)
+        let selectionRange = string.paragraphRange(for: baseRange)
+        let paragraphRanges = paragraphRanges(in: selectionRange, baseString: string)
+        if paragraphRanges.isEmpty {
+            insertBulletAtCursor(at: selection.location)
+            return
+        }
+        let shouldRemove = paragraphRanges.allSatisfy { ListFormatting.hasBullet(in: string, paragraphRange: $0) }
+        var offset = 0
+        var cursorDelta = 0
+        for range in paragraphRanges {
+            var adjustedRange = NSRange(location: range.location + offset,
+                                        length: range.length)
+            if shouldRemove {
+                let removed = removeBullet(in: adjustedRange, textStorage: textStorage)
+                offset -= removed
+                if range.location <= selection.location {
+                    cursorDelta -= removed
+                }
+            } else {
+                let removedExisting = removeBullet(in: adjustedRange, textStorage: textStorage)
+                offset -= removedExisting
+                if range.location <= selection.location {
+                    cursorDelta -= removedExisting
+                }
+                let inserted = insertBullet(in: adjustedRange, textView: textView)
+                offset += inserted
+                if range.location <= selection.location {
+                    cursorDelta += inserted
+                }
+            }
+        }
+        let newSelection: NSRange
+        if selection.length == 0 {
+            newSelection = NSRange(location: max(0, selection.location + cursorDelta), length: 0)
+        } else {
+            newSelection = NSRange(location: selectionRange.location,
+                                   length: selectionRange.length + offset)
+        }
+        textView.setSelectedRange(newSelection)
+        normalizeTypingAttributesAfterListPrefix()
+        textView.didChangeText()
     }
 
-    func insertNumberedList() {
+    func refreshBulletStyling() {
         guard let textView else { return }
-        guard let textStorage = textView.textStorage else { return }
-        let nsString = textStorage.string as NSString
-        let selectedRange = textView.selectedRange()
-        let paragraphRange = nsString.paragraphRange(for: selectedRange)
-        var lineIndex = 1
-        var offset = 0
-
-        nsString.enumerateSubstrings(in: paragraphRange, options: .byParagraphs) { _, range, _, _ in
-            let insertionIndex = range.location + offset
-            let prefix = "\(lineIndex). "
-            let attributedPrefix = self.attributedPrefixString(prefix)
-            textStorage.insert(attributedPrefix, at: insertionIndex)
-            offset += prefix.count
-            lineIndex += 1
-        }
-
-        let updatedRange = NSRange(location: paragraphRange.location, length: paragraphRange.length + offset)
-        textView.setSelectedRange(updatedRange)
-    }
-
-    private func applyListPrefix(_ prefix: String) {
-        guard let textView else { return }
-        guard let textStorage = textView.textStorage else { return }
-        let nsString = textStorage.string as NSString
-        let selectedRange = textView.selectedRange()
-        let paragraphRange = nsString.paragraphRange(for: selectedRange)
-        var offset = 0
-
-        nsString.enumerateSubstrings(in: paragraphRange, options: .byParagraphs) { _, range, _, _ in
-            let insertionIndex = range.location + offset
-            let attributedPrefix = self.attributedPrefixString(prefix)
-            textStorage.insert(attributedPrefix, at: insertionIndex)
-            offset += prefix.count
-        }
-
-        let updatedRange = NSRange(location: paragraphRange.location, length: paragraphRange.length + offset)
-        textView.setSelectedRange(updatedRange)
+        enforceBulletStyle(in: textView)
     }
 
     private func applyFontTrait(_ trait: NSFontTraitMask) {
@@ -543,17 +782,19 @@ final class RichTextEditorController: ObservableObject {
             return
         }
 
+        let string = textView.string as NSString
         for range in selections {
             if range.length == 0 {
                 updateTypingAttributes(for: textView, trait: trait, fontManager: fontManager)
                 continue
             }
-            textView.textStorage?.enumerateAttribute(.font, in: range, options: []) { value, subrange, _ in
-                let font = (value as? NSFont) ?? textView.font ?? NSFont.systemFont(ofSize: 18)
-                let updatedFont = toggledFont(from: font, trait: trait, fontManager: fontManager)
-                textView.textStorage?.addAttribute(.font, value: updatedFont, range: subrange)
-            }
+            applyTrait(trait,
+                       to: range,
+                       textView: textView,
+                       fontManager: fontManager,
+                       string: string)
         }
+        enforceBulletStyle(in: textView)
         textView.didChangeText()
     }
 
@@ -577,10 +818,475 @@ final class RichTextEditorController: ObservableObject {
         }
     }
 
-    private func attributedPrefixString(_ string: String) -> NSAttributedString {
-        let attributes = textView?.typingAttributes ?? [:]
-        return NSAttributedString(string: string, attributes: attributes)
+    private func paragraphRanges(in range: NSRange,
+                                  baseString: NSString) -> [NSRange] {
+        var ranges: [NSRange] = []
+        baseString.enumerateSubstrings(in: range, options: .byParagraphs) { _, subrange, _, _ in
+            ranges.append(subrange)
+        }
+        return ranges
     }
+
+    private func insertBulletAtCursor(at location: Int) {
+        guard let textView, let textStorage = textView.textStorage else { return }
+        let string = textStorage.string as NSString
+        let safeLocation = min(location, string.length)
+        let paragraphRange = string.paragraphRange(for: NSRange(location: safeLocation, length: 0))
+        _ = insertBullet(in: paragraphRange, textView: textView)
+        let updatedString = textStorage.string as NSString
+        if let markerRange = ListFormatting.bulletMarkerRange(in: updatedString, paragraphRange: paragraphRange) {
+            textView.setSelectedRange(NSRange(location: markerRange.location + markerRange.length, length: 0))
+        } else {
+            textView.setSelectedRange(NSRange(location: min(safeLocation + ListFormatting.bulletInsertionString.utf16.count, textStorage.length), length: 0))
+        }
+        normalizeTypingAttributesAfterListPrefix()
+        textView.didChangeText()
+    }
+
+    @discardableResult
+    private func insertBullet(in paragraphRange: NSRange, textView: NSTextView) -> Int {
+        guard let textStorage = textView.textStorage else { return 0 }
+        let string = textStorage.string as NSString
+        let indent = ListFormatting.indentRange(in: string, paragraphRange: paragraphRange)
+        let insertionLocation = min(paragraphRange.location + indent.length, textStorage.length)
+        return insertBulletDirectly(at: insertionLocation, textView: textView)
+    }
+
+    @discardableResult
+    private func insertBulletDirectly(at location: Int, textView: NSTextView) -> Int {
+        guard let textStorage = textView.textStorage else { return 0 }
+        let safeLocation = min(location, textStorage.length)
+        var attributes = attributesForInsertion(at: safeLocation, textView: textView)
+        let baseFont = (attributes[.font] as? NSFont) ?? textView.font ?? NSFont.systemFont(ofSize: 18)
+        let fontManager = NSFontManager.shared
+        let nonItalic = fontManager.convert(baseFont, toNotHaveTrait: .italicFontMask)
+        let boldFont = fontManager.convert(nonItalic, toHaveTrait: .boldFontMask)
+        attributes[.font] = boldFont
+        let attributedPrefix = NSAttributedString(string: ListFormatting.bulletInsertionString,
+                                                  attributes: attributes)
+        textStorage.insert(attributedPrefix, at: safeLocation)
+        return ListFormatting.bulletInsertionString.utf16.count
+    }
+
+    @discardableResult
+    private func removeBullet(in range: NSRange, textStorage: NSTextStorage) -> Int {
+        let currentString = textStorage.string as NSString
+        guard range.location <= currentString.length else { return 0 }
+        let cappedEnd = min(range.location + range.length, currentString.length)
+        let paragraphRange = NSRange(location: range.location, length: max(0, cappedEnd - range.location))
+        guard let removalRange = ListFormatting.bulletRemovalRange(in: currentString, paragraphRange: paragraphRange) else { return 0 }
+        let safeLength = min(removalRange.length, textStorage.length - removalRange.location)
+        if safeLength <= 0 { return 0 }
+        textStorage.deleteCharacters(in: NSRange(location: removalRange.location, length: safeLength))
+        return safeLength
+    }
+
+    private func attributesForInsertion(at location: Int, textView: NSTextView) -> [NSAttributedString.Key: Any] {
+        guard let textStorage = textView.textStorage else { return textView.typingAttributes }
+        if location < textStorage.length {
+            return textStorage.attributes(at: location, effectiveRange: nil)
+        }
+        return textView.typingAttributes
+    }
+
+    private func neutralAttributesForListInsertion(at location: Int,
+                                                   textView: NSTextView) -> [NSAttributedString.Key: Any] {
+        var attributes = attributesForInsertion(at: location, textView: textView)
+        let baseFont = (attributes[.font] as? NSFont) ?? textView.font ?? NSFont.systemFont(ofSize: 18)
+        let fontManager = NSFontManager.shared
+        let nonBold = fontManager.convert(baseFont, toNotHaveTrait: .boldFontMask)
+        let neutralFont = fontManager.convert(nonBold, toNotHaveTrait: .italicFontMask)
+        attributes[.font] = neutralFont
+        return attributes
+    }
+
+    func shouldAllowChange(in affectedRange: NSRange,
+                           replacementString: String?,
+                           textView: NSTextView) -> Bool {
+        guard let textStorage = textView.textStorage else { return true }
+        if affectedRange.location > textStorage.length { return false }
+        guard textStorage.length > 0 else { return true }
+        if handleAsteriskShortcut(in: affectedRange,
+                                  replacementString: replacementString,
+                                  textView: textView) {
+            return false
+        }
+        let string = textStorage.string as NSString
+        let paragraphRange = string.paragraphRange(for: affectedRange)
+        if affectedRange.length == 0,
+           ListFormatting.isBulletMarker(at: affectedRange.location, in: string) {
+            return false
+        }
+        let replacement = replacementString ?? ""
+        handleBulletDeletionIfNeeded(in: affectedRange,
+                                     replacementString: replacementString,
+                                     paragraphRange: paragraphRange,
+                                     string: string)
+        guard let markerRange = ListFormatting.bulletMarkerRange(in: string, paragraphRange: paragraphRange) else {
+            return true
+        }
+        let guardLength = markerRange.location - paragraphRange.location
+        if guardLength <= 0 { return true }
+        let guardRange = NSRange(location: paragraphRange.location, length: guardLength)
+        let intersectsGuard: Bool
+        if affectedRange.length == 0 {
+            intersectsGuard = NSLocationInRange(affectedRange.location, guardRange)
+        } else {
+            intersectsGuard = NSIntersectionRange(affectedRange, guardRange).length > 0
+        }
+        guard intersectsGuard else { return true }
+        if replacement.isEmpty {
+            DispatchQueue.main.async { [weak self] in
+                self?.normalizeTypingAttributesAfterListPrefix()
+            }
+            return true
+        }
+        let allowedTabs = CharacterSet(charactersIn: "\t")
+        let isOnlyTabs = replacement.unicodeScalars.allSatisfy { allowedTabs.contains($0) }
+        return isOnlyTabs
+    }
+
+    private func handleAsteriskShortcut(in affectedRange: NSRange,
+                                        replacementString: String?,
+                                        textView: NSTextView) -> Bool {
+        guard replacementString == " ",
+              affectedRange.length == 0,
+              affectedRange.location > 0,
+              let textStorage = textView.textStorage else { return false }
+        let string = textStorage.string as NSString
+        let paragraphRange = string.paragraphRange(for: NSRange(location: affectedRange.location - 1, length: 0))
+        guard affectedRange.location - paragraphRange.location == 1 else { return false }
+        guard string.character(at: paragraphRange.location) == 42 else { return false } // '*'
+        textStorage.deleteCharacters(in: NSRange(location: paragraphRange.location, length: 1))
+        textView.setSelectedRange(NSRange(location: paragraphRange.location, length: 0))
+        insertBulletAtCursor(at: paragraphRange.location)
+        return true
+    }
+
+    private func handleBulletDeletionIfNeeded(in affectedRange: NSRange,
+                                              replacementString: String?,
+                                              paragraphRange: NSRange,
+                                              string: NSString) {
+        guard (replacementString ?? "").isEmpty else { return }
+        var removedBullet = false
+        string.enumerateSubstrings(in: paragraphRange, options: .byParagraphs) { _, subrange, _, stop in
+            guard let markerRange = ListFormatting.bulletMarkerRange(in: string, paragraphRange: subrange) else { return }
+            if NSIntersectionRange(markerRange, affectedRange).length > 0 {
+                removedBullet = true
+                stop.pointee = true
+            }
+        }
+        guard removedBullet else { return }
+        DispatchQueue.main.async { [weak self] in
+            self?.normalizeTypingAttributesAfterListPrefix()
+        }
+    }
+
+    @discardableResult
+    func indentSelection() -> Bool {
+        guard let textView, let textStorage = textView.textStorage else { return false }
+        let string = textStorage.string as NSString
+        if string.length == 0 { return false }
+        let selection = textView.selectedRange()
+        let clampedLocation = min(selection.location, string.length)
+        let safeLength = min(selection.length, max(0, string.length - clampedLocation))
+        let baseRange = string.paragraphRange(for: NSRange(location: clampedLocation, length: safeLength))
+        var paragraphs = paragraphRanges(in: baseRange, baseString: string)
+        if paragraphs.isEmpty {
+            paragraphs = [baseRange]
+        }
+        var offset = 0
+        var cursorDelta = 0
+        var modified = false
+        for range in paragraphs {
+            let adjustedRange = NSRange(location: range.location + offset,
+                                        length: range.length)
+            let currentString = textStorage.string as NSString
+            let hasList = ListFormatting.hasBullet(in: currentString, paragraphRange: adjustedRange)
+            if !hasList { continue }
+            let attributes = neutralAttributesForListInsertion(at: adjustedRange.location, textView: textView)
+            textStorage.insert(NSAttributedString(string: "\t", attributes: attributes), at: adjustedRange.location)
+            offset += 1
+            if range.location <= selection.location {
+                cursorDelta += 1
+            }
+            modified = true
+        }
+        guard modified else { return false }
+        let newSelection: NSRange
+        if selection.length == 0 {
+            newSelection = NSRange(location: selection.location + cursorDelta, length: 0)
+        } else {
+            newSelection = NSRange(location: baseRange.location, length: baseRange.length + offset)
+        }
+        textView.setSelectedRange(newSelection)
+        normalizeTypingAttributesAfterListPrefix()
+        textView.didChangeText()
+        return true
+    }
+
+    @discardableResult
+    func outdentSelection() -> Bool {
+        guard let textView, let textStorage = textView.textStorage else { return false }
+        let string = textStorage.string as NSString
+        if string.length == 0 { return false }
+        let selection = textView.selectedRange()
+        let clampedLocation = min(selection.location, string.length)
+        let safeLength = min(selection.length, max(0, string.length - clampedLocation))
+        let baseRange = string.paragraphRange(for: NSRange(location: clampedLocation, length: safeLength))
+        var paragraphs = paragraphRanges(in: baseRange, baseString: string)
+        if paragraphs.isEmpty {
+            paragraphs = [baseRange]
+        }
+        var offset = 0
+        var cursorDelta = 0
+        var modified = false
+        for range in paragraphs {
+            let adjustedRange = NSRange(location: range.location + offset,
+                                        length: range.length)
+            let currentString = textStorage.string as NSString
+            let hasList = ListFormatting.hasBullet(in: currentString, paragraphRange: adjustedRange)
+            if !hasList { continue }
+            let removed = removeIndent(in: adjustedRange, textStorage: textStorage)
+            if removed > 0 {
+                offset -= removed
+                if range.location <= selection.location {
+                    cursorDelta -= removed
+                }
+                modified = true
+            }
+        }
+        guard modified else { return false }
+        let newSelection: NSRange
+        if selection.length == 0 {
+            newSelection = NSRange(location: max(0, selection.location + cursorDelta), length: 0)
+        } else {
+            newSelection = NSRange(location: baseRange.location,
+                                   length: max(0, baseRange.length + offset))
+        }
+        textView.setSelectedRange(newSelection)
+        normalizeTypingAttributesAfterListPrefix()
+        textView.didChangeText()
+        return true
+    }
+
+    func handleNewline() -> Bool {
+        guard let textView, let textStorage = textView.textStorage else { return false }
+        let selection = textView.selectedRange()
+        if selection.length > 0 { return false }
+        let string = textStorage.string as NSString
+        if string.length == 0 { return false }
+        let clampedLocation = min(selection.location, string.length)
+        let paragraphRange = string.paragraphRange(for: NSRange(location: clampedLocation, length: 0))
+        if let match = ListFormatting.bulletMatch(in: string, paragraphRange: paragraphRange) {
+            if bulletLineIsEmpty(match: match, paragraphRange: paragraphRange, string: string) {
+                clearEmptyBulletLine(match: match,
+                                     paragraphRange: paragraphRange,
+                                     textView: textView,
+                                     textStorage: textStorage)
+            } else {
+                insertBulletNewline(match: match,
+                                    paragraphRange: paragraphRange,
+                                    caretLocation: selection.location,
+                                    textView: textView,
+                                    textStorage: textStorage)
+            }
+            textView.didChangeText()
+            return true
+        }
+        return false
+    }
+
+    private func removeIndent(in paragraphRange: NSRange, textStorage: NSTextStorage) -> Int {
+        let string = textStorage.string as NSString
+        guard paragraphRange.length > 0, paragraphRange.location < string.length else { return 0 }
+        var removed = 0
+        while paragraphRange.location + removed < string.length {
+            let character = string.character(at: paragraphRange.location + removed)
+            if character == 9 || character == 32 {
+                removed += 1
+            } else {
+                break
+            }
+        }
+        if removed > 0 {
+            let safeRemoval = min(removed, textStorage.length - paragraphRange.location)
+            textStorage.deleteCharacters(in: NSRange(location: paragraphRange.location, length: safeRemoval))
+            return safeRemoval
+        }
+        return 0
+    }
+
+    private func bulletLineIsEmpty(match: ListFormatting.PrefixMatch,
+                                   paragraphRange: NSRange,
+                                   string: NSString) -> Bool {
+        let contentStart = paragraphRange.location + match.markerStartOffset + match.markerLength
+        let end = paragraphRange.location + paragraphRange.length
+        if contentStart >= end { return true }
+        let range = NSRange(location: contentStart, length: end - contentStart)
+        let content = string.substring(with: range)
+        return content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+
+    private func insertBulletNewline(match: ListFormatting.PrefixMatch,
+                                     paragraphRange: NSRange,
+                                     caretLocation: Int,
+                                     textView: NSTextView,
+                                     textStorage: NSTextStorage) {
+        let originalString = textStorage.string as NSString
+        let indentRange = NSRange(location: paragraphRange.location, length: match.indentLength)
+        let indentString = indentRange.length > 0 ? originalString.substring(with: indentRange) : ""
+        let attributes = attributesForInsertion(at: caretLocation, textView: textView)
+        textStorage.insert(NSAttributedString(string: "\n", attributes: attributes), at: caretLocation)
+        var insertionPoint = caretLocation + 1
+        if !indentString.isEmpty {
+            let indentAttributes = neutralAttributesForListInsertion(at: insertionPoint, textView: textView)
+            textStorage.insert(NSAttributedString(string: indentString, attributes: indentAttributes), at: insertionPoint)
+            insertionPoint += indentString.utf16.count
+        }
+        let bulletLength = insertBulletDirectly(at: insertionPoint, textView: textView)
+        let refreshedString = textStorage.string as NSString
+        let caretParagraphRange = refreshedString.paragraphRange(for: NSRange(location: insertionPoint, length: max(1, bulletLength)))
+        if let markerRange = ListFormatting.bulletMarkerRange(in: refreshedString, paragraphRange: caretParagraphRange) {
+            textView.setSelectedRange(NSRange(location: markerRange.location + markerRange.length, length: 0))
+        } else {
+            textView.setSelectedRange(NSRange(location: min(insertionPoint + bulletLength, textStorage.length), length: 0))
+        }
+        normalizeTypingAttributesAfterListPrefix()
+    }
+
+
+    private func clearEmptyBulletLine(match: ListFormatting.PrefixMatch,
+                                      paragraphRange: NSRange,
+                                      textView: NSTextView,
+                                      textStorage: NSTextStorage) {
+        let removalLength = min(match.indentLength + match.markerLength + match.trailingWhitespaceLength,
+                                textStorage.length - paragraphRange.location)
+        if removalLength > 0 {
+            textStorage.deleteCharacters(in: NSRange(location: paragraphRange.location, length: removalLength))
+        }
+        textView.setSelectedRange(NSRange(location: paragraphRange.location, length: 0))
+        normalizeTypingAttributesAfterListPrefix()
+    }
+
+
+    private func applyTrait(_ trait: NSFontTraitMask,
+                            to range: NSRange,
+                            textView: NSTextView,
+                            fontManager: NSFontManager,
+                            string: NSString) {
+        guard let textStorage = textView.textStorage else { return }
+        let sanitizedRanges = rangesExcludingBullets(in: range, string: string)
+        for sanitizedRange in sanitizedRanges where sanitizedRange.length > 0 {
+            textStorage.enumerateAttribute(.font, in: sanitizedRange, options: []) { value, subrange, _ in
+                let font = (value as? NSFont) ?? textView.font ?? NSFont.systemFont(ofSize: 18)
+                let updatedFont = toggledFont(from: font, trait: trait, fontManager: fontManager)
+                textStorage.addAttribute(.font, value: updatedFont, range: subrange)
+            }
+        }
+    }
+
+    private func rangesExcludingBullets(in range: NSRange, string: NSString) -> [NSRange] {
+        var segments: [NSRange] = []
+        let end = range.location + range.length
+        var index = range.location
+        var currentStart: Int?
+        while index < end {
+            if ListFormatting.isBulletMarker(at: index, in: string) {
+                if let start = currentStart {
+                    segments.append(NSRange(location: start, length: index - start))
+                    currentStart = nil
+                }
+                index += 1
+                continue
+            }
+            if currentStart == nil {
+                currentStart = index
+            }
+            index += 1
+        }
+        if let start = currentStart {
+            segments.append(NSRange(location: start, length: index - start))
+        }
+        return segments
+    }
+
+    private func enforceBulletStyle(in textView: NSTextView) {
+        guard let textStorage = textView.textStorage else { return }
+        var location = 0
+        while location < textStorage.length {
+            let currentString = textStorage.string as NSString
+            let paragraphRange = currentString.paragraphRange(for: NSRange(location: location, length: 0))
+            guard paragraphRange.length > 0 else {
+                location += 1
+                continue
+            }
+            if let match = ListFormatting.normalizeBullet(in: textStorage, paragraphRange: paragraphRange) {
+                let markerRange = NSRange(location: paragraphRange.location + match.markerStartOffset,
+                                          length: match.markerLength)
+                var attributes = textStorage.attributes(at: markerRange.location, effectiveRange: nil)
+                let baseFont = (attributes[.font] as? NSFont) ?? textView.font ?? NSFont.systemFont(ofSize: 18)
+                let nonItalic = NSFontManager.shared.convert(baseFont, toNotHaveTrait: .italicFontMask)
+                let boldFont = NSFontManager.shared.convert(nonItalic, toHaveTrait: .boldFontMask)
+                attributes[.font] = boldFont
+                textStorage.setAttributes(attributes, range: markerRange)
+                normalizeTypingAttributesAfterListPrefix()
+            }
+            let updatedString = textStorage.string as NSString
+            let updatedRange = updatedString.paragraphRange(for: NSRange(location: paragraphRange.location, length: 0))
+            location = updatedRange.location + updatedRange.length
+        }
+    }
+
+    private func normalizeTypingAttributesAfterListPrefix() {
+        guard let textView else { return }
+        var attributes = textView.typingAttributes
+        let baseFont = (attributes[.font] as? NSFont) ?? textView.font ?? NSFont.systemFont(ofSize: 18)
+        let fontManager = NSFontManager.shared
+        let nonBold = fontManager.convert(baseFont, toNotHaveTrait: .boldFontMask)
+        let neutralFont = fontManager.convert(nonBold, toNotHaveTrait: .italicFontMask)
+        attributes[.font] = neutralFont
+        textView.typingAttributes = attributes
+    }
+
+    func ensureNeutralTypingAttributesIfNeeded(for textView: NSTextView) {
+        guard textView.selectedRange.length == 0 else { return }
+        guard let textStorage = textView.textStorage else { return }
+        let location = textView.selectedRange.location
+        let string = textStorage.string as NSString
+        guard string.length > 0 else { return }
+        if location > 0 && location <= string.length,
+           ListFormatting.isBulletMarker(at: location - 1, in: string) {
+            var attributes = textView.typingAttributes
+            let baseFont = (attributes[.font] as? NSFont) ?? textView.font ?? NSFont.systemFont(ofSize: 18)
+            let fontManager = NSFontManager.shared
+            let nonBold = fontManager.convert(baseFont, toNotHaveTrait: .boldFontMask)
+            let neutralFont = fontManager.convert(nonBold, toNotHaveTrait: .italicFontMask)
+            attributes[.font] = neutralFont
+            textView.typingAttributes = attributes
+        }
+    }
+
+    func focusEditor() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            if let textView = self.textView, let window = textView.window {
+                window.makeFirstResponder(textView)
+            } else {
+                self.pendingFocusRequest = true
+            }
+        }
+    }
+
+    private func applyPendingFocusIfNeeded() {
+        guard pendingFocusRequest, let textView else { return }
+        pendingFocusRequest = false
+        DispatchQueue.main.async { [weak textView] in
+            textView?.window?.makeFirstResponder(textView)
+        }
+    }
+
 }
 #else
 /// Minimal fallback so the view still compiles on non-macOS platforms.
@@ -609,8 +1315,7 @@ struct RichTextEditor: View {
 final class RichTextEditorController: ObservableObject {
     func toggleBold() {}
     func toggleItalic() {}
-    func insertBullet() {}
-    func insertNumberedList() {}
+    func toggleBulletedList() {}
 }
 #endif
 
@@ -619,10 +1324,23 @@ struct CalendarGrid: View {
     @Binding var currentMonth: Date
     @Binding var dateTextMap: [String: Data]
     let availableWidth: CGFloat
+    let onDaySelection: (() -> Void)?
     let calendar = Calendar.current
     
     @State private var hoveredDay: Int? = nil // Track the hovered day
     @State private var calendarGridDensity: CGFloat = 80 // I find the value 80 makes the grid as dense as I like
+
+    init(selectedDate: Binding<Date>,
+         currentMonth: Binding<Date>,
+         dateTextMap: Binding<[String: Data]>,
+         availableWidth: CGFloat,
+         onDaySelection: (() -> Void)? = nil) {
+        _selectedDate = selectedDate
+        _currentMonth = currentMonth
+        _dateTextMap = dateTextMap
+        self.availableWidth = availableWidth
+        self.onDaySelection = onDaySelection
+    }
     
     var body: some View {
         VStack(spacing: 0) {
@@ -686,6 +1404,7 @@ struct CalendarGrid: View {
                                 components.day = day
                                 if let newDate = calendar.date(from: components) {
                                     selectedDate = newDate
+                                    onDaySelection?()
                                 }
                             }
                             .onHover { isHovering in
@@ -824,14 +1543,12 @@ struct TextFormattingButton: View {
         case bold
         case italic
         case bulletList
-        case numberedList
         
         var systemImageName: String {
             switch self {
             case .bold: return "bold"
             case .italic: return "italic"
             case .bulletList: return "list.bullet"
-            case .numberedList: return "list.number"
             }
         }
     }
