@@ -1,4 +1,7 @@
 import SwiftUI
+#if os(macOS)
+import AppKit
+#endif
 
 // Dedicated struct for date formatting utilities
 struct DateUtils {
@@ -43,14 +46,21 @@ struct DateUtils {
     }
 }
 
+struct FormattingState {
+    var isBold: Bool = false
+    var isItalic: Bool = false
+}
+
 let monthNavigationHStackPadding: CGFloat = 10
 let monthNavigationButtonSize: CGFloat = 30
 
 struct ContentView: View {
-    @State private var textContent: String = ""
+    @State private var attributedText: NSAttributedString = NSAttributedString(string: "")
     @State private var selectedDate: Date = Date()
     @State private var currentMonth: Date = Date()
-    @State private var dateTextMap: [String: String] = [:] // Dictionary to store text per date
+    @State private var dateTextMap: [String: Data] = [:] // Dictionary storing RTF data per date
+    @StateObject private var textEditorController = RichTextEditorController()
+    @State private var formattingState = FormattingState()
     let calendar: Calendar = Calendar.current
     let spacingBetweenTodayButtonAndCalendar: CGFloat = 15
     let todayButtonColor: Color = Color.init(red: 200/255, green: 220/255, blue: 255/255)
@@ -109,7 +119,6 @@ struct ContentView: View {
                         CalendarGrid(selectedDate: $selectedDate,
                                      currentMonth: $currentMonth,
                                      dateTextMap: $dateTextMap,
-                                     textContent: $textContent,
                                      availableWidth: (geometry.size.width - horizontalEmptySpace) * leftSideRatio)
                     }
                     .background(RoundedRectangle(cornerRadius: 10)
@@ -127,35 +136,36 @@ struct ContentView: View {
                         Spacer()
                     }
 
-                    ZStack {
-                        if self.textContent.isEmpty { // Hacky way for placeholder text
-                            TextEditor(text: .constant("Start writing..."))
-                                .font(.system(size: 18))
+                    ZStack(alignment: .topLeading) {
+                        if attributedText.string.isEmpty {
+                            Text("Start writing...")
                                 .foregroundStyle(.gray)
-                                .disabled(true)
-                                .padding(.horizontal, 15)
-                                .padding(.vertical, 18)
-                                .background(.white)
+                                .padding(.horizontal, 20)
+                                .padding(.vertical, 22)
+                                .allowsHitTesting(false)
                         }
-                        TextEditor(text: $textContent)
-                            .font(.system(size: 18))
-                            .lineSpacing(10)
-                            .padding(.horizontal, 15)
-                            .padding(.vertical, 18)
-                            .opacity(self.textContent.isEmpty ? 0.25 : 1) // Hacky way for placeholder text
-                            .background(self.textContent.isEmpty ? .clear : .white) // Hacky way for placeholder text
-                            .onChange(of: textContent) {
-                                saveTextForDate()
-                            }
+                        RichTextEditor(text: $attributedText,
+                                       controller: textEditorController,
+                                       onTextChange: { _ in saveTextForDate() },
+                                       onFormattingStateChange: { state in
+                                           DispatchQueue.main.async {
+                                               formattingState = state
+                                           }
+                                       })
+                            .frame(minHeight: 420)
+                            .background(Color.white)
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
                     }
                     .clipShape(RoundedRectangle(cornerRadius: 10))
 
                     HStack {
                         TextFormattingButton(buttonAction: { toggleBold() },
-                                             formattingOption: .bold)
+                                             formattingOption: .bold,
+                                             isActive: formattingState.isBold)
                         
                         TextFormattingButton(buttonAction: { toggleItalic() },
-                                             formattingOption: .italic)
+                                             formattingOption: .italic,
+                                             isActive: formattingState.isItalic)
                         
                         TextFormattingButton(buttonAction: { addBulletPoint() },
                                              formattingOption: .bulletList)
@@ -165,7 +175,7 @@ struct ContentView: View {
                         
                         Spacer()
                         
-                        Text("\(textContent.count)")
+                        Text("\(attributedText.string.count)")
                             .foregroundColor(.gray)
                     }
                 }
@@ -177,6 +187,9 @@ struct ContentView: View {
         .frame(minWidth: 1200, minHeight: 650)
         .onAppear {
             loadSavedData()
+        }
+        .onChangeCompat(of: selectedDate) {
+            updateTextContent()
         }
     }
     
@@ -200,21 +213,22 @@ struct ContentView: View {
     
     private func updateTextContent() {
         let dateKey = DateUtils.dateKey(from: selectedDate)
-        textContent = dateTextMap[dateKey] ?? ""
+        if let data = dateTextMap[dateKey], let attributed = attributedString(from: data) {
+            attributedText = attributed
+        } else {
+            attributedText = NSAttributedString(string: "")
+        }
     }
     
     private func saveTextForDate() {
         let dateKey = DateUtils.dateKey(from: selectedDate)
-        if textContent.isEmpty {
-            dateTextMap.removeValue(forKey: dateKey) // Remove entry if text is empty
-        } else {
-            dateTextMap[dateKey] = textContent
+        let trimmed = attributedText.string.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            dateTextMap.removeValue(forKey: dateKey)
+        } else if let data = rtfData(from: attributedText) {
+            dateTextMap[dateKey] = data
         }
         saveToUserDefaults()
-    }
-    
-    private func dateKeyForDate(_ date: Date) -> String {
-        return DateUtils.dateKey(from: date)
     }
     
     // Persistence with Error Handling
@@ -231,13 +245,19 @@ struct ContentView: View {
     
     private func loadSavedData() {
         if let data = UserDefaults.standard.data(forKey: "dateTextMap") {
-            do {
-                let savedMap = try JSONDecoder().decode([String: String].self, from: data)
+            if let savedMap = try? JSONDecoder().decode([String: Data].self, from: data) {
                 dateTextMap = savedMap
                 updateTextContent()
-            } catch {
-                print("Error loading from UserDefaults: \(error.localizedDescription)")
-                // Fallback: Use empty map as default
+            } else if let legacyMap = try? JSONDecoder().decode([String: String].self, from: data) {
+                dateTextMap = legacyMap.reduce(into: [:]) { result, entry in
+                    let attributed = NSAttributedString(string: entry.value)
+                    if let rtf = rtfData(from: attributed) {
+                        result[entry.key] = rtf
+                    }
+                }
+                updateTextContent()
+            } else {
+                print("Error loading from UserDefaults: Unsupported data format")
                 dateTextMap = [:]
                 updateTextContent()
             }
@@ -247,47 +267,357 @@ struct ContentView: View {
             updateTextContent()
         }
     }
+
+    private func rtfData(from attributedString: NSAttributedString) -> Data? {
+        let range = NSRange(location: 0, length: attributedString.length)
+        return try? attributedString.data(from: range, documentAttributes: [.documentType: NSAttributedString.DocumentType.rtf])
+    }
+    
+    private func attributedString(from data: Data) -> NSAttributedString? {
+        try? NSAttributedString(data: data,
+                                options: [.documentType: NSAttributedString.DocumentType.rtf],
+                                documentAttributes: nil)
+    }
     
     // Formatting Functions
     private func toggleBold() {
-        // TODO: Correct implementation of toggleBold()
-//        if textContent.contains("**") {
-//            textContent = textContent.replacingOccurrences(of: "**", with: "")
-//        } else {
-//            textContent = "**" + textContent + "**"
-//        }
+        textEditorController.toggleBold()
     }
     
     private func toggleItalic() {
-        // TODO: Correct implementation of toggleItalic()
-//        if textContent.contains("_") {
-//            textContent = textContent.replacingOccurrences(of: "_", with: "")
-//        } else {
-//            textContent = "_" + textContent + "_"
-//        }
+        textEditorController.toggleItalic()
     }
     
     private func addBulletPoint() {
-        // TODO: Correct implementation of addBulletPoint()
-//        textContent += "\n• "
+        textEditorController.insertBullet()
     }
     
     private func addNumberedList() {
-        // TODO: Correct implementation of addNumberedList()
-//        let lines = textContent.split(separator: "\n")
-//        var newText = ""
-//        for (index, line) in lines.enumerated() {
-//            newText += "\(index + 1). \(line)\n"
-//        }
-//        textContent = newText
+        textEditorController.insertNumberedList()
     }
 }
+
+#if os(macOS)
+final class FormattingTextView: NSTextView {
+    var onBoldCommand: (() -> Void)?
+    var onItalicCommand: (() -> Void)?
+
+    override func keyDown(with event: NSEvent) {
+        if event.modifierFlags.contains(.command), let key = event.charactersIgnoringModifiers?.lowercased() {
+            switch key {
+            case "b":
+                onBoldCommand?()
+                return
+            case "i":
+                onItalicCommand?()
+                return
+            default:
+                break
+            }
+        }
+        super.keyDown(with: event)
+    }
+}
+
+/// Wraps NSTextView so we can edit attributed text with custom formatting controls.
+struct RichTextEditor: NSViewRepresentable {
+    @Binding var text: NSAttributedString
+    let controller: RichTextEditorController
+    let onTextChange: (NSAttributedString) -> Void
+    let onFormattingStateChange: (FormattingState) -> Void
+    private let defaultFont = NSFont.systemFont(ofSize: 18)
+    private let paragraphSpacing: CGFloat = 6
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(parent: self)
+    }
+
+    func makeNSView(context: Context) -> NSScrollView {
+        let textView = FormattingTextView()
+        textView.isRichText = true
+        textView.importsGraphics = false
+        textView.allowsUndo = true
+        textView.usesInspectorBar = false
+        textView.isVerticallyResizable = true
+        textView.isHorizontallyResizable = false
+        textView.autoresizingMask = [.width]
+        textView.font = defaultFont
+        textView.delegate = context.coordinator
+        textView.textContainerInset = NSSize(width: 15, height: 18)
+        textView.textContainer?.containerSize = NSSize(width: CGFloat.greatestFiniteMagnitude,
+                                                       height: CGFloat.greatestFiniteMagnitude)
+        textView.textContainer?.widthTracksTextView = true
+        textView.backgroundColor = .white
+        textView.textStorage?.setAttributedString(text)
+        textView.typingAttributes = defaultTypingAttributes()
+        textView.onBoldCommand = { [weak controller] in
+            controller?.toggleBold()
+        }
+        textView.onItalicCommand = { [weak controller] in
+            controller?.toggleItalic()
+        }
+
+        controller.textView = textView
+        let state = formattingState(for: textView)
+        DispatchQueue.main.async {
+            onFormattingStateChange(state)
+        }
+
+        let scrollView = NSScrollView()
+        scrollView.drawsBackground = false
+        scrollView.hasVerticalScroller = true
+        scrollView.hasHorizontalScroller = false
+        scrollView.autohidesScrollers = true
+        scrollView.documentView = textView
+        return scrollView
+    }
+
+    func updateNSView(_ nsView: NSScrollView, context: Context) {
+        guard let textView = nsView.documentView as? NSTextView else { return }
+        controller.textView = textView
+        guard !context.coordinator.isUpdatingFromUser else { return }
+
+        let currentText = textView.attributedString()
+        if currentText.isEqual(to: text) {
+            let state = formattingState(for: textView)
+            DispatchQueue.main.async {
+                onFormattingStateChange(state)
+            }
+            return
+        }
+        context.coordinator.isUpdatingFromParent = true
+        textView.textStorage?.setAttributedString(text)
+        textView.typingAttributes = defaultTypingAttributes()
+        context.coordinator.isUpdatingFromParent = false
+        let state = formattingState(for: textView)
+        DispatchQueue.main.async {
+            onFormattingStateChange(state)
+        }
+    }
+
+    private func defaultTypingAttributes() -> [NSAttributedString.Key: Any] {
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.paragraphSpacing = paragraphSpacing
+        return [
+            .font: defaultFont,
+            .paragraphStyle: paragraphStyle
+        ]
+    }
+
+    private func formattingState(for textView: NSTextView) -> FormattingState {
+        let fontManager = NSFontManager.shared
+        let selectedRange = textView.selectedRange()
+        if selectedRange.length == 0 {
+            let font = (textView.typingAttributes[.font] as? NSFont) ?? textView.font ?? defaultFont
+            let traits = fontManager.traits(of: font)
+            return FormattingState(isBold: traits.contains(.boldFontMask),
+                                   isItalic: traits.contains(.italicFontMask))
+        }
+        var boldValue: Bool?
+        var italicValue: Bool?
+        var boldMixed = false
+        var italicMixed = false
+        textView.textStorage?.enumerateAttribute(.font, in: selectedRange, options: []) { value, _, stop in
+            let baseFont = (value as? NSFont) ?? textView.font ?? defaultFont
+            let traits = fontManager.traits(of: baseFont)
+            let isBold = traits.contains(.boldFontMask)
+            let isItalic = traits.contains(.italicFontMask)
+            if let existing = boldValue {
+                if existing != isBold { boldMixed = true }
+            } else {
+                boldValue = isBold
+            }
+            if let existingItalic = italicValue {
+                if existingItalic != isItalic { italicMixed = true }
+            } else {
+                italicValue = isItalic
+            }
+            if boldMixed && italicMixed {
+                stop.pointee = true
+            }
+        }
+        let bold = boldMixed ? false : (boldValue ?? false)
+        let italic = italicMixed ? false : (italicValue ?? false)
+        return FormattingState(isBold: bold, isItalic: italic)
+    }
+
+    class Coordinator: NSObject, NSTextViewDelegate {
+        var parent: RichTextEditor
+        var isUpdatingFromParent = false
+        var isUpdatingFromUser = false
+
+        init(parent: RichTextEditor) {
+            self.parent = parent
+        }
+
+        func textDidChange(_ notification: Notification) {
+            guard let textView = notification.object as? NSTextView else { return }
+            if isUpdatingFromParent { return }
+            parent.controller.textView = textView
+            let value = textView.attributedString()
+            isUpdatingFromUser = true
+            parent.text = value
+            parent.onTextChange(value)
+            DispatchQueue.main.async { self.isUpdatingFromUser = false }
+            let parent = parent
+            DispatchQueue.main.async {
+                parent.onFormattingStateChange(parent.formattingState(for: textView))
+            }
+        }
+
+        func textViewDidChangeSelection(_ notification: Notification) {
+            guard let textView = notification.object as? NSTextView else { return }
+            parent.controller.textView = textView
+            let parent = parent
+            DispatchQueue.main.async {
+                parent.onFormattingStateChange(parent.formattingState(for: textView))
+            }
+        }
+    }
+}
+
+/// Controls formatting commands sent from SwiftUI buttons to the underlying NSTextView.
+final class RichTextEditorController: ObservableObject {
+    weak var textView: NSTextView?
+
+    func toggleBold() {
+        applyFontTrait(.boldFontMask)
+    }
+
+    func toggleItalic() {
+        applyFontTrait(.italicFontMask)
+    }
+
+    func insertBullet() {
+        applyListPrefix("• ")
+    }
+
+    func insertNumberedList() {
+        guard let textView else { return }
+        guard let textStorage = textView.textStorage else { return }
+        let nsString = textStorage.string as NSString
+        let selectedRange = textView.selectedRange()
+        let paragraphRange = nsString.paragraphRange(for: selectedRange)
+        var lineIndex = 1
+        var offset = 0
+
+        nsString.enumerateSubstrings(in: paragraphRange, options: .byParagraphs) { _, range, _, _ in
+            let insertionIndex = range.location + offset
+            let prefix = "\(lineIndex). "
+            let attributedPrefix = self.attributedPrefixString(prefix)
+            textStorage.insert(attributedPrefix, at: insertionIndex)
+            offset += prefix.count
+            lineIndex += 1
+        }
+
+        let updatedRange = NSRange(location: paragraphRange.location, length: paragraphRange.length + offset)
+        textView.setSelectedRange(updatedRange)
+    }
+
+    private func applyListPrefix(_ prefix: String) {
+        guard let textView else { return }
+        guard let textStorage = textView.textStorage else { return }
+        let nsString = textStorage.string as NSString
+        let selectedRange = textView.selectedRange()
+        let paragraphRange = nsString.paragraphRange(for: selectedRange)
+        var offset = 0
+
+        nsString.enumerateSubstrings(in: paragraphRange, options: .byParagraphs) { _, range, _, _ in
+            let insertionIndex = range.location + offset
+            let attributedPrefix = self.attributedPrefixString(prefix)
+            textStorage.insert(attributedPrefix, at: insertionIndex)
+            offset += prefix.count
+        }
+
+        let updatedRange = NSRange(location: paragraphRange.location, length: paragraphRange.length + offset)
+        textView.setSelectedRange(updatedRange)
+    }
+
+    private func applyFontTrait(_ trait: NSFontTraitMask) {
+        guard let textView else { return }
+        let fontManager = NSFontManager.shared
+        let selections = textView.selectedRanges.compactMap { $0.rangeValue }
+
+        if selections.isEmpty {
+            updateTypingAttributes(for: textView, trait: trait, fontManager: fontManager)
+            return
+        }
+
+        for range in selections {
+            if range.length == 0 {
+                updateTypingAttributes(for: textView, trait: trait, fontManager: fontManager)
+                continue
+            }
+            textView.textStorage?.enumerateAttribute(.font, in: range, options: []) { value, subrange, _ in
+                let font = (value as? NSFont) ?? textView.font ?? NSFont.systemFont(ofSize: 18)
+                let updatedFont = toggledFont(from: font, trait: trait, fontManager: fontManager)
+                textView.textStorage?.addAttribute(.font, value: updatedFont, range: subrange)
+            }
+        }
+        textView.didChangeText()
+    }
+
+    private func updateTypingAttributes(for textView: NSTextView,
+                                        trait: NSFontTraitMask,
+                                        fontManager: NSFontManager) {
+        var attributes = textView.typingAttributes
+        let baseFont = (attributes[.font] as? NSFont) ?? textView.font ?? NSFont.systemFont(ofSize: 18)
+        attributes[.font] = toggledFont(from: baseFont, trait: trait, fontManager: fontManager)
+        textView.typingAttributes = attributes
+    }
+
+    private func toggledFont(from font: NSFont,
+                             trait: NSFontTraitMask,
+                             fontManager: NSFontManager) -> NSFont {
+        let hasTrait = fontManager.traits(of: font).contains(trait)
+        if hasTrait {
+            return fontManager.convert(font, toNotHaveTrait: trait)
+        } else {
+            return fontManager.convert(font, toHaveTrait: trait)
+        }
+    }
+
+    private func attributedPrefixString(_ string: String) -> NSAttributedString {
+        let attributes = textView?.typingAttributes ?? [:]
+        return NSAttributedString(string: string, attributes: attributes)
+    }
+}
+#else
+/// Minimal fallback so the view still compiles on non-macOS platforms.
+struct RichTextEditor: View {
+    @Binding var text: NSAttributedString
+    let controller: RichTextEditorController
+    let onTextChange: (NSAttributedString) -> Void
+    let onFormattingStateChange: (FormattingState) -> Void
+
+    var body: some View {
+        _ = controller
+        TextEditor(text: Binding(
+            get: { text.string },
+            set: { newValue in
+                text = NSAttributedString(string: newValue)
+                onTextChange(text)
+                onFormattingStateChange(FormattingState())
+            }
+        ))
+        .onAppear {
+            onFormattingStateChange(FormattingState())
+        }
+    }
+}
+
+final class RichTextEditorController: ObservableObject {
+    func toggleBold() {}
+    func toggleItalic() {}
+    func insertBullet() {}
+    func insertNumberedList() {}
+}
+#endif
 
 struct CalendarGrid: View {
     @Binding var selectedDate: Date
     @Binding var currentMonth: Date
-    @Binding var dateTextMap: [String: String]
-    @Binding var textContent: String
+    @Binding var dateTextMap: [String: Data]
     let availableWidth: CGFloat
     let calendar = Calendar.current
     
@@ -356,7 +686,6 @@ struct CalendarGrid: View {
                                 components.day = day
                                 if let newDate = calendar.date(from: components) {
                                     selectedDate = newDate
-                                    updateTextContent()
                                 }
                             }
                             .onHover { isHovering in
@@ -420,21 +749,11 @@ struct CalendarGrid: View {
         components.day = day
         if let date = calendar.date(from: components) {
             let dateKey = DateUtils.dateKey(from: date)
-            if let content = dateTextMap[dateKey], !content.isEmpty {
-                return true
-            }
+            return dateTextMap[dateKey] != nil
         }
         return false
     }
     
-    private func updateTextContent() {
-        let dateKey = DateUtils.dateKey(from: selectedDate)
-        textContent = dateTextMap[dateKey] ?? ""
-    }
-    
-    private func dateKeyForDate(_ date: Date) -> String {
-        return DateUtils.dateKey(from: date)
-    }
 }
 
 // Buttons for navigating previous/next month
@@ -477,14 +796,28 @@ struct MonthNavigationButton: View {
     }
 }
 
-// Buttons for formatting the text in TextEditor
+// Buttons for formatting text content
 struct TextFormattingButton: View {
     let buttonAction: () -> Void
     let formattingOption: TextFormat
+    let isActive: Bool
+
+    init(buttonAction: @escaping () -> Void,
+         formattingOption: TextFormat,
+         isActive: Bool = false) {
+        self.buttonAction = buttonAction
+        self.formattingOption = formattingOption
+        self.isActive = isActive
+    }
     
     private let fontSize: CGFloat = 18
     private let frameSize: CGFloat = 30
     private let buttonColor: Color = Color.init(cgColor: CGColor(gray: 215/255, alpha: 1))
+    private let activeButtonColor: Color = Color(red: 70/255, green: 105/255, blue: 175/255)
+    private let inactiveShadowColor: Color = Color.black.opacity(0.3)
+    private let activeShadowColor: Color = Color(red: 15/255, green: 30/255, blue: 75/255).opacity(0.6)
+    private let inactiveIconColor: Color = .black
+    private let activeIconColor: Color = Color(red: 225/255, green: 238/255, blue: 255/255)
     private let buttonShape: RoundedRectangle = RoundedRectangle(cornerRadius: 5)
     
     enum TextFormat {
@@ -509,12 +842,27 @@ struct TextFormattingButton: View {
                 .font(.system(size: fontSize))
                 .frame(width: frameSize, height: frameSize)
                 .background(buttonShape
-                    .fill(buttonColor)
-                    .shadow(color: .black.opacity(0.3), radius: 2, x: 2, y: 2))
-                .foregroundStyle(.black)
+                    .fill(isActive ? activeButtonColor : buttonColor)
+                    .shadow(color: isActive ? activeShadowColor : inactiveShadowColor, radius: 2, x: 2, y: 2))
+                .foregroundStyle(isActive ? activeIconColor : inactiveIconColor)
         }
         .buttonStyle(.plain)
-        .disabled(true)
+    }
+}
+
+extension View {
+    @ViewBuilder
+    fileprivate func onChangeCompat<Value: Equatable>(of value: Value,
+                                                      _ action: @escaping () -> Void) -> some View {
+        if #available(macOS 14.0, *) {
+            self.onChange(of: value, initial: false) { _, _ in
+                action()
+            }
+        } else {
+            self.onChange(of: value) { _ in
+                action()
+            }
+        }
     }
 }
 
