@@ -66,6 +66,9 @@ struct ContentView: View {
     let spacingBetweenTodayButtonAndCalendar: CGFloat = 15
     let todayButtonColor: Color = Color.init(red: 200/255, green: 220/255, blue: 255/255)
     let calendarViewBackgroundColor: Color = Color.init(cgColor: CGColor(gray: 220/255, alpha: 1))
+    let appBackgroundColor: Color = Color(red: 235/255,
+                                          green: 236/255,
+                                          blue: 239/255)
     
     // Spacing and layout constants
     let topLevelSpacing: CGFloat = 20
@@ -185,6 +188,7 @@ struct ContentView: View {
             .padding(.vertical, topLevelVerticalPadding)
         }
         .frame(minWidth: 1200, minHeight: 650)
+        .background(appBackgroundColor)
         .onAppear {
             loadSavedData()
             textEditorController.focusEditor()
@@ -1532,9 +1536,9 @@ struct TextFormattingButton: View {
     private let fontSize: CGFloat = 18
     private let frameSize: CGFloat = 30
     private let buttonColor: Color = Color.init(cgColor: CGColor(gray: 215/255, alpha: 1))
-    private let activeButtonColor: Color = Color(red: 70/255, green: 105/255, blue: 175/255)
+    private let activeButtonColor: Color = Color(red: 150/255, green: 190/255, blue: 245/255)
     private let inactiveShadowColor: Color = Color.black.opacity(0.3)
-    private let activeShadowColor: Color = Color(red: 15/255, green: 30/255, blue: 75/255).opacity(0.6)
+    private let activeShadowColor: Color = Color(red: 60/255, green: 90/255, blue: 140/255).opacity(0.35)
     private let inactiveIconColor: Color = .black
     private let activeIconColor: Color = Color(red: 225/255, green: 238/255, blue: 255/255)
     private let buttonShape: RoundedRectangle = RoundedRectangle(cornerRadius: 5)
