@@ -737,7 +737,7 @@ private struct ListFormatting {
             return bulletMatch(in: updatedString, paragraphRange: paragraphRange)
         }
 
-        guard var match = currentMatch() else { return nil }
+        guard let match = currentMatch() else { return nil }
         var updatedString = textStorage.string as NSString
         let markerLocation = paragraphRange.location + match.markerStartOffset
         if markerLocation >= updatedString.length {
@@ -797,7 +797,7 @@ final class RichTextEditorController: ObservableObject {
         var offset = 0
         var cursorDelta = 0
         for range in paragraphRanges {
-            var adjustedRange = NSRange(location: range.location + offset,
+            let adjustedRange = NSRange(location: range.location + offset,
                                         length: range.length)
             if shouldRemove {
                 let removed = removeBullet(in: adjustedRange, textStorage: textStorage)
