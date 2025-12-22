@@ -54,6 +54,11 @@ struct FormattingState {
 
 let monthNavigationHStackPadding: CGFloat = 10
 let monthNavigationButtonSize: CGFloat = 30
+let activeFormattingButtonColor = Color(red: 126/255, green: 130/255, blue: 130/255, opacity: 1.0)
+let inactiveFormattingButtonColor = Color(red: 0, green: 0, blue: 0, opacity: 0.0)
+let appBackgroundColor = Color(red: 235/255, green: 236/255, blue: 239/255)
+let calendarBackgroundColor = Color(red: 220/255, green: 220/255, blue: 220/255)
+let todayButtonColor = Color(red: 200/255, green: 220/255, blue: 255/255)
 
 struct ContentView: View {
     @State private var attributedText: NSAttributedString = NSAttributedString(string: "")
@@ -64,11 +69,6 @@ struct ContentView: View {
     @State private var formattingState = FormattingState()
     let calendar: Calendar = Calendar.current
     let spacingBetweenTodayButtonAndCalendar: CGFloat = 15
-    let todayButtonColor: Color = Color.init(red: 200/255, green: 220/255, blue: 255/255)
-    let calendarViewBackgroundColor: Color = Color.init(cgColor: CGColor(gray: 220/255, alpha: 1))
-    let appBackgroundColor: Color = Color(red: 235/255,
-                                          green: 236/255,
-                                          blue: 239/255)
     
     // Spacing and layout constants
     let topLevelSpacing: CGFloat = 20
@@ -127,7 +127,7 @@ struct ContentView: View {
                                      onDaySelection: { textEditorController.focusEditor() })
                     }
                     .background(RoundedRectangle(cornerRadius: 10)
-                        .fill(calendarViewBackgroundColor))
+                        .fill(calendarBackgroundColor))
                 }
                 .frame(width: (geometry.size.width - horizontalEmptySpace) * leftSideRatio)
                 .padding(.bottom, spacingBetweenTodayButtonAndCalendar) // This helps bring it slightly higher which is a look I prefer
@@ -169,15 +169,21 @@ struct ContentView: View {
                     HStack {
                         TextFormattingButton(buttonAction: { toggleBold() },
                                              formattingOption: .bold,
-                                             isActive: formattingState.isBold)
+                                             isActive: formattingState.isBold,
+                                             activeColor: activeFormattingButtonColor,
+                                             inactiveColor: inactiveFormattingButtonColor)
                         
                         TextFormattingButton(buttonAction: { toggleItalic() },
                                              formattingOption: .italic,
-                                             isActive: formattingState.isItalic)
+                                             isActive: formattingState.isItalic,
+                                             activeColor: activeFormattingButtonColor,
+                                             inactiveColor: inactiveFormattingButtonColor)
                         
                         TextFormattingButton(buttonAction: { toggleBulletedList() },
                                              formattingOption: .bulletList,
-                                             isActive: formattingState.isBulleted)
+                                             isActive: formattingState.isBulleted,
+                                             activeColor: activeFormattingButtonColor,
+                                             inactiveColor: inactiveFormattingButtonColor)
                         
                         Spacer()
                         
@@ -188,7 +194,8 @@ struct ContentView: View {
                 .frame(width: (geometry.size.width - horizontalEmptySpace) * goldenRatio)
             }
             .padding(.horizontal, topLevelHorizontalPadding)
-            .padding(.vertical, topLevelVerticalPadding)
+            .padding(.top, topLevelVerticalPadding + 24)
+            .padding(.bottom, topLevelVerticalPadding)
         }
         .frame(minWidth: 1200, minHeight: 650)
         .background(appBackgroundColor)
@@ -1579,19 +1586,23 @@ struct TextFormattingButton: View {
     let buttonAction: () -> Void
     let formattingOption: TextFormat
     let isActive: Bool
+    let activeColor: Color
+    let inactiveColor: Color
 
     init(buttonAction: @escaping () -> Void,
          formattingOption: TextFormat,
-         isActive: Bool = false) {
+         isActive: Bool = false,
+         activeColor: Color,
+         inactiveColor: Color) {
         self.buttonAction = buttonAction
         self.formattingOption = formattingOption
         self.isActive = isActive
+        self.activeColor = activeColor
+        self.inactiveColor = inactiveColor
     }
     
     private let fontSize: CGFloat = 18
     private let frameSize: CGFloat = 30
-    private let buttonColor: Color = Color.init(cgColor: CGColor(gray: 215/255, alpha: 1))
-    private let activeButtonColor: Color = Color(red: 150/255, green: 190/255, blue: 245/255)
     private let inactiveShadowColor: Color = Color.black.opacity(0.3)
     private let activeShadowColor: Color = Color(red: 60/255, green: 90/255, blue: 140/255).opacity(0.35)
     private let inactiveIconColor: Color = .black
@@ -1618,9 +1629,10 @@ struct TextFormattingButton: View {
                 .font(.system(size: fontSize))
                 .frame(width: frameSize, height: frameSize)
                 .background(buttonShape
-                    .fill(isActive ? activeButtonColor : buttonColor)
+                    .fill(isActive ? activeColor : inactiveColor)
                     .shadow(color: isActive ? activeShadowColor : inactiveShadowColor, radius: 2, x: 2, y: 2))
                 .foregroundStyle(isActive ? activeIconColor : inactiveIconColor)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
@@ -1648,3 +1660,4 @@ struct ContentView_Previews: PreviewProvider {
         ContentView()
     }
 }
+
