@@ -156,7 +156,10 @@ struct ContentView: View {
                                            DispatchQueue.main.async {
                                                formattingState = state
                                            }
-                                       })
+                                       },
+                                       onNavigateDay: { changeDay(by: $0) },
+                                       onNavigateMonth: { changeMonthKeepingDay(by: $0) },
+                                       onGoToToday: { goToToday() })
                             .frame(minHeight: 420)
                             .background(Color.white)
                             .clipShape(RoundedRectangle(cornerRadius: 10))
@@ -207,6 +210,24 @@ struct ContentView: View {
                 updateTextContent()
                 textEditorController.focusEditor()
             }
+        }
+    }
+
+    private func changeMonthKeepingDay(by value: Int) {
+        if let newDate = calendar.date(byAdding: .month, value: value, to: selectedDate) {
+            selectedDate = newDate
+            currentMonth = newDate
+            updateTextContent()
+            textEditorController.focusEditor()
+        }
+    }
+
+    private func changeDay(by value: Int) {
+        if let newDate = calendar.date(byAdding: .day, value: value, to: selectedDate) {
+            selectedDate = newDate
+            currentMonth = newDate
+            updateTextContent()
+            textEditorController.focusEditor()
         }
     }
     
@@ -309,15 +330,37 @@ final class FormattingTextView: NSTextView {
     var onIndentCommand: (() -> Bool)?
     var onOutdentCommand: (() -> Bool)?
     var onNewlineCommand: (() -> Bool)?
+    var onPreviousDay: (() -> Void)?
+    var onNextDay: (() -> Void)?
+    var onPreviousMonth: (() -> Void)?
+    var onNextMonth: (() -> Void)?
+    var onGoToToday: (() -> Void)?
 
     override func keyDown(with event: NSEvent) {
-        if event.modifierFlags.contains(.command), let key = event.charactersIgnoringModifiers?.lowercased() {
+        if event.modifierFlags.contains(.command), let key = event.charactersIgnoringModifiers {
             switch key {
-            case "b":
+            case "b", "B":
                 onBoldCommand?()
                 return
-            case "i":
+            case "i", "I":
                 onItalicCommand?()
+                return
+            case "[", "{":
+                if event.modifierFlags.contains(.shift) {
+                    onPreviousMonth?()
+                } else {
+                    onPreviousDay?()
+                }
+                return
+            case "]", "}":
+                if event.modifierFlags.contains(.shift) {
+                    onNextMonth?()
+                } else {
+                    onNextDay?()
+                }
+                return
+            case "t", "T":
+                onGoToToday?()
                 return
             default:
                 break
@@ -354,6 +397,9 @@ struct RichTextEditor: NSViewRepresentable {
     let controller: RichTextEditorController
     let onTextChange: (NSAttributedString) -> Void
     let onFormattingStateChange: (FormattingState) -> Void
+    let onNavigateDay: (Int) -> Void
+    let onNavigateMonth: (Int) -> Void
+    let onGoToToday: () -> Void
     private let defaultFont = NSFont.systemFont(ofSize: 18)
     private let paragraphSpacing: CGFloat = 6
 
@@ -395,6 +441,11 @@ struct RichTextEditor: NSViewRepresentable {
         textView.onNewlineCommand = { [weak controller] in
             return controller?.handleNewline() ?? false
         }
+        textView.onPreviousDay = { onNavigateDay(-1) }
+        textView.onNextDay = { onNavigateDay(1) }
+        textView.onPreviousMonth = { onNavigateMonth(-1) }
+        textView.onNextMonth = { onNavigateMonth(1) }
+        textView.onGoToToday = { onGoToToday() }
 
         controller.textView = textView
         let state = formattingState(for: textView)
@@ -1299,6 +1350,9 @@ struct RichTextEditor: View {
     let controller: RichTextEditorController
     let onTextChange: (NSAttributedString) -> Void
     let onFormattingStateChange: (FormattingState) -> Void
+    let onNavigateDay: (Int) -> Void
+    let onNavigateMonth: (Int) -> Void
+    let onGoToToday: () -> Void
 
     var body: some View {
         _ = controller
