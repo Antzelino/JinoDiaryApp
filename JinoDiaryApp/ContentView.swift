@@ -192,6 +192,7 @@ struct ContentView: View {
         }
         .frame(minWidth: 1200, minHeight: 650)
         .background(appBackgroundColor)
+        .ignoresSafeArea()
         .onAppear {
             loadSavedData()
             textEditorController.focusEditor()

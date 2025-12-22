@@ -13,5 +13,6 @@ struct JinoDiaryAppApp: App {
         WindowGroup {
             ContentView()
         }
+        .windowStyle(.hiddenTitleBar)
     }
 }
