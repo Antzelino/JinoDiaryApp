@@ -9,4 +9,4 @@ This "daily diary" app is just a personal tool I use, because it helps me with w
 
 ## Screenshot
 The app looks like this as of writing this (I'll try to update with a new screenshot as time goes on and there's new development):
-<img width="1312" alt="image" src="https://github.com/user-attachments/assets/7c34df52-c5ae-42ce-972f-e0c233f1e114" />
+<img width="1634" height="908" alt="image" src="https://github.com/user-attachments/assets/267bb762-b6da-4fea-ae59-f899ac0a6489" />
