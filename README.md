@@ -16,6 +16,8 @@ This "daily diary" app is just a personal tool I use, because it helps me with w
 ### Date Navigation
 - **`⌘ [`** — Previous day
 - **`⌘ ]`** — Next day
+- **`⌘ ⌥ [`** — Previous day with content
+- **`⌘ ⌥ ]`** — Next day with content
 - **`⌘ ⇧ [`** — Previous month
 - **`⌘ ⇧ ]`** — Next month
 - **`⌘ T`** — Go to today

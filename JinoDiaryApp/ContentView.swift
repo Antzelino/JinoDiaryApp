@@ -159,7 +159,8 @@ struct ContentView: View {
                                        },
                                        onNavigateDay: { changeDay(by: $0) },
                                        onNavigateMonth: { changeMonthKeepingDay(by: $0) },
-                                       onGoToToday: { goToToday() })
+                                       onGoToToday: { goToToday() },
+                                       onNavigateToDayWithContent: { navigateToDayWithContent(direction: $0) })
                             .frame(minHeight: 420)
                             .background(Color.white)
                             .clipShape(RoundedRectangle(cornerRadius: 10))
@@ -245,6 +246,31 @@ struct ContentView: View {
         selectedDate = today
         updateTextContent()
         textEditorController.focusEditor()
+    }
+    
+    private func dateHasContent(_ date: Date) -> Bool {
+        let key = DateUtils.dateKey(from: date)
+        return dateTextMap[key] != nil
+    }
+    
+    private func navigateToDayWithContent(direction: Int) {
+        var searchDate = selectedDate
+        let maxDays = 365 // Prevent infinite loops; search up to 1 year ahead/back
+        
+        for _ in 0..<maxDays {
+            if let newDate = calendar.date(byAdding: .day, value: direction, to: searchDate) {
+                if dateHasContent(newDate) {
+                    selectedDate = newDate
+                    currentMonth = newDate
+                    updateTextContent()
+                    textEditorController.focusEditor()
+                    return
+                }
+                searchDate = newDate
+            } else {
+                return
+            }
+        }
     }
     
     private func updateTextContent() {
@@ -343,6 +369,8 @@ final class FormattingTextView: NSTextView {
     var onPreviousMonth: (() -> Void)?
     var onNextMonth: (() -> Void)?
     var onGoToToday: (() -> Void)?
+    var onPreviousDayWithContent: (() -> Void)?
+    var onNextDayWithContent: (() -> Void)?
 
     override func keyDown(with event: NSEvent) {
         if event.modifierFlags.contains(.command), let key = event.charactersIgnoringModifiers {
@@ -354,14 +382,18 @@ final class FormattingTextView: NSTextView {
                 onItalicCommand?()
                 return
             case "[", "{":
-                if event.modifierFlags.contains(.shift) {
+                if event.modifierFlags.contains(.option) {
+                    onPreviousDayWithContent?()
+                } else if event.modifierFlags.contains(.shift) {
                     onPreviousMonth?()
                 } else {
                     onPreviousDay?()
                 }
                 return
             case "]", "}":
-                if event.modifierFlags.contains(.shift) {
+                if event.modifierFlags.contains(.option) {
+                    onNextDayWithContent?()
+                } else if event.modifierFlags.contains(.shift) {
                     onNextMonth?()
                 } else {
                     onNextDay?()
@@ -408,6 +440,7 @@ struct RichTextEditor: NSViewRepresentable {
     let onNavigateDay: (Int) -> Void
     let onNavigateMonth: (Int) -> Void
     let onGoToToday: () -> Void
+    let onNavigateToDayWithContent: (Int) -> Void
     private let defaultFont = NSFont.systemFont(ofSize: 18)
     private let paragraphSpacing: CGFloat = 6
 
@@ -454,6 +487,8 @@ struct RichTextEditor: NSViewRepresentable {
         textView.onPreviousMonth = { onNavigateMonth(-1) }
         textView.onNextMonth = { onNavigateMonth(1) }
         textView.onGoToToday = { onGoToToday() }
+        textView.onPreviousDayWithContent = { onNavigateToDayWithContent(-1) }
+        textView.onNextDayWithContent = { onNavigateToDayWithContent(1) }
 
         controller.textView = textView
         let state = formattingState(for: textView)
