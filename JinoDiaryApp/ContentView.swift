@@ -123,12 +123,14 @@ struct ContentView: View {
                         }
                         .padding(monthNavigationHStackPadding)
                         
-                        CalendarGrid(selectedDate: $selectedDate,
-                                     currentMonth: $currentMonth,
-                                     datesWithContent: $datesWithContent,
-                                     availableWidth: (geometry.size.width - horizontalEmptySpace) * leftSideRatio,
-                                     onBeforeDayChange: { saveImmediately() },
-                                     onDaySelection: { textEditorController.focusEditor() })
+                        AcceptsFirstMouseWrapper(content:
+                            CalendarGrid(selectedDate: $selectedDate,
+                                         currentMonth: $currentMonth,
+                                         datesWithContent: $datesWithContent,
+                                         availableWidth: (geometry.size.width - horizontalEmptySpace) * leftSideRatio,
+                                         onBeforeDayChange: { saveImmediately() },
+                                         onDaySelection: { textEditorController.focusEditor() })
+                        )
                     }
                     .background(RoundedRectangle(cornerRadius: 10)
                         .fill(calendarBackgroundColor))
@@ -1713,6 +1715,26 @@ extension View {
         }
     }
 }
+
+#if os(macOS)
+private struct AcceptsFirstMouseWrapper<Content: View>: NSViewRepresentable {
+    let content: Content
+
+    func makeNSView(context: Context) -> FirstMouseHostingView<Content> {
+        FirstMouseHostingView(rootView: content)
+    }
+
+    func updateNSView(_ nsView: FirstMouseHostingView<Content>, context: Context) {
+        nsView.rootView = content
+    }
+}
+
+private final class FirstMouseHostingView<Content: View>: NSHostingView<Content> {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
+        true
+    }
+}
+#endif
 
 // For the Preview Canvas within XCode
 struct ContentView_Previews: PreviewProvider {
