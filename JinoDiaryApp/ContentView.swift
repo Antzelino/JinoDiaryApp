@@ -61,13 +61,16 @@ let calendarBackgroundColor = Color(red: 220/255, green: 220/255, blue: 220/255)
 let todayButtonColor = Color(red: 200/255, green: 220/255, blue: 255/255)
 
 struct ContentView: View {
+    @Environment(\.scenePhase) private var scenePhase
     @State private var attributedText: NSAttributedString = NSAttributedString(string: "")
     @State private var selectedDate: Date = Date()
     @State private var currentMonth: Date = Date()
-    @State private var dateTextMap: [String: Data] = [:] // Dictionary storing RTF data per date
+    @State private var datesWithContent: Set<String> = []
+    @State private var pendingSave: DispatchWorkItem? = nil
     @StateObject private var textEditorController = RichTextEditorController()
     @State private var formattingState = FormattingState()
     let calendar: Calendar = Calendar.current
+    private let storage: DiaryStorage = SQLiteStorageService.shared
     let spacingBetweenTodayButtonAndCalendar: CGFloat = 15
     
     // Spacing and layout constants
@@ -122,8 +125,9 @@ struct ContentView: View {
                         
                         CalendarGrid(selectedDate: $selectedDate,
                                      currentMonth: $currentMonth,
-                                     dateTextMap: $dateTextMap,
+                                     datesWithContent: $datesWithContent,
                                      availableWidth: (geometry.size.width - horizontalEmptySpace) * leftSideRatio,
+                                     onBeforeDayChange: { saveImmediately() },
                                      onDaySelection: { textEditorController.focusEditor() })
                     }
                     .background(RoundedRectangle(cornerRadius: 10)
@@ -151,7 +155,10 @@ struct ContentView: View {
                         }
                         RichTextEditor(text: $attributedText,
                                        controller: textEditorController,
-                                       onTextChange: { _ in saveTextForDate() },
+                                       onTextChange: { newText in
+                                           updateContentIndicator(for: newText)
+                                           scheduleSave()
+                                       },
                                        onFormattingStateChange: { state in
                                            DispatchQueue.main.async {
                                                formattingState = state
@@ -202,8 +209,18 @@ struct ContentView: View {
         .background(appBackgroundColor)
         .ignoresSafeArea()
         .onAppear {
-            loadSavedData()
+            loadFromStorage()
             textEditorController.focusEditor()
+        }
+        .onChange(of: scenePhase) { oldPhase, newPhase in
+            if newPhase != .active {
+                saveImmediately()
+                storage.performBackup(retaining: 3)
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)) { _ in
+            saveImmediately()
+            storage.performBackup(retaining: 3)
         }
         .onChangeCompat(of: selectedDate) {
             updateTextContent()
@@ -211,6 +228,7 @@ struct ContentView: View {
     }
     
     private func changeMonth(by value: Int) {
+        saveImmediately()
         if let newMonth = calendar.date(byAdding: .month, value: value, to: currentMonth) {
             currentMonth = newMonth
             // Select the first day of the new month
@@ -223,6 +241,7 @@ struct ContentView: View {
     }
 
     private func changeMonthKeepingDay(by value: Int) {
+        saveImmediately()
         if let newDate = calendar.date(byAdding: .month, value: value, to: selectedDate) {
             selectedDate = newDate
             currentMonth = newDate
@@ -232,6 +251,7 @@ struct ContentView: View {
     }
 
     private func changeDay(by value: Int) {
+        saveImmediately()
         if let newDate = calendar.date(byAdding: .day, value: value, to: selectedDate) {
             selectedDate = newDate
             currentMonth = newDate
@@ -241,6 +261,7 @@ struct ContentView: View {
     }
     
     private func goToToday() {
+        saveImmediately()
         let today = Date()
         currentMonth = today
         selectedDate = today
@@ -250,10 +271,11 @@ struct ContentView: View {
     
     private func dateHasContent(_ date: Date) -> Bool {
         let key = DateUtils.dateKey(from: date)
-        return dateTextMap[key] != nil
+        return datesWithContent.contains(key)
     }
     
     private func navigateToDayWithContent(direction: Int) {
+        saveImmediately()
         var searchDate = selectedDate
         let maxDays = 365 // Prevent infinite loops; search up to 1 year ahead/back
         
@@ -275,7 +297,7 @@ struct ContentView: View {
     
     private func updateTextContent() {
         let dateKey = DateUtils.dateKey(from: selectedDate)
-        if let data = dateTextMap[dateKey], let attributed = attributedString(from: data) {
+        if let data = storage.loadEntry(for: dateKey), let attributed = attributedString(from: data) {
             attributedText = attributed
         } else {
             attributedText = NSAttributedString(string: "")
@@ -283,52 +305,51 @@ struct ContentView: View {
         textEditorController.focusEditor()
     }
     
-    private func saveTextForDate() {
+#if os(macOS)
+    private func refreshTextFromEditor() {
+        if let textView = textEditorController.textView {
+            attributedText = textView.attributedString()
+        }
+    }
+#else
+    private func refreshTextFromEditor() {}
+#endif
+
+    private func updateContentIndicator(for text: NSAttributedString) {
+        let key = DateUtils.dateKey(from: selectedDate)
+        let trimmed = text.string.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            datesWithContent.remove(key)
+        } else {
+            datesWithContent.insert(key)
+        }
+    }
+    
+    private func scheduleSave() {
+        pendingSave?.cancel()
+        let work = DispatchWorkItem { [self] in saveImmediately() }
+        pendingSave = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8, execute: work)
+    }
+
+    private func saveImmediately() {
+        refreshTextFromEditor()
+        pendingSave?.cancel()
+        pendingSave = nil
         let dateKey = DateUtils.dateKey(from: selectedDate)
         let trimmed = attributedText.string.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty {
-            dateTextMap.removeValue(forKey: dateKey)
+            storage.saveEntry(nil, for: dateKey)
+            datesWithContent.remove(dateKey)
         } else if let data = rtfData(from: attributedText) {
-            dateTextMap[dateKey] = data
-        }
-        saveToUserDefaults()
-    }
-    
-    // Persistence with Error Handling
-    private func saveToUserDefaults() {
-        do {
-            let encodedData = try JSONEncoder().encode(dateTextMap)
-            UserDefaults.standard.set(encodedData, forKey: "dateTextMap")
-        } catch {
-            print("Error saving to UserDefaults: \(error.localizedDescription)")
-            // Fallback: Clear the map to prevent corruption
-            dateTextMap = [:]
+            storage.saveEntry(data, for: dateKey)
+            datesWithContent.insert(dateKey)
         }
     }
-    
-    private func loadSavedData() {
-        if let data = UserDefaults.standard.data(forKey: "dateTextMap") {
-            if let savedMap = try? JSONDecoder().decode([String: Data].self, from: data) {
-                dateTextMap = savedMap
-                updateTextContent()
-            } else if let legacyMap = try? JSONDecoder().decode([String: String].self, from: data) {
-                dateTextMap = legacyMap.reduce(into: [:]) { result, entry in
-                    let attributed = NSAttributedString(string: entry.value)
-                    if let rtf = rtfData(from: attributed) {
-                        result[entry.key] = rtf
-                    }
-                }
-                updateTextContent()
-            } else {
-                print("Error loading from UserDefaults: Unsupported data format")
-                dateTextMap = [:]
-                updateTextContent()
-            }
-        } else {
-            // No data found, initialize with empty map
-            dateTextMap = [:]
-            updateTextContent()
-        }
+
+    private func loadFromStorage() {
+        datesWithContent = storage.allDateKeys()
+        updateTextContent()
     }
 
     private func rtfData(from attributedString: NSAttributedString) -> Data? {
@@ -1423,8 +1444,9 @@ final class RichTextEditorController: ObservableObject {
 struct CalendarGrid: View {
     @Binding var selectedDate: Date
     @Binding var currentMonth: Date
-    @Binding var dateTextMap: [String: Data]
+    @Binding var datesWithContent: Set<String>
     let availableWidth: CGFloat
+    let onBeforeDayChange: (() -> Void)?
     let onDaySelection: (() -> Void)?
     let calendar = Calendar.current
     
@@ -1433,13 +1455,15 @@ struct CalendarGrid: View {
 
     init(selectedDate: Binding<Date>,
          currentMonth: Binding<Date>,
-         dateTextMap: Binding<[String: Data]>,
+         datesWithContent: Binding<Set<String>>,
          availableWidth: CGFloat,
+         onBeforeDayChange: (() -> Void)? = nil,
          onDaySelection: (() -> Void)? = nil) {
         _selectedDate = selectedDate
         _currentMonth = currentMonth
-        _dateTextMap = dateTextMap
+        _datesWithContent = datesWithContent
         self.availableWidth = availableWidth
+        self.onBeforeDayChange = onBeforeDayChange
         self.onDaySelection = onDaySelection
     }
     
@@ -1504,6 +1528,7 @@ struct CalendarGrid: View {
                                 var components = calendar.dateComponents([.year, .month], from: currentMonth)
                                 components.day = day
                                 if let newDate = calendar.date(from: components) {
+                                    onBeforeDayChange?()
                                     selectedDate = newDate
                                     onDaySelection?()
                                 }
@@ -1569,7 +1594,7 @@ struct CalendarGrid: View {
         components.day = day
         if let date = calendar.date(from: components) {
             let dateKey = DateUtils.dateKey(from: date)
-            return dateTextMap[dateKey] != nil
+            return datesWithContent.contains(dateKey)
         }
         return false
     }
