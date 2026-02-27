@@ -394,6 +394,7 @@ final class FormattingTextView: NSTextView {
     var onGoToToday: (() -> Void)?
     var onPreviousDayWithContent: (() -> Void)?
     var onNextDayWithContent: (() -> Void)?
+    var onAfterStandardNewline: (() -> Void)?
 
     override func keyDown(with event: NSEvent) {
         if event.modifierFlags.contains(.command), let key = event.charactersIgnoringModifiers {
@@ -451,6 +452,7 @@ final class FormattingTextView: NSTextView {
             return
         }
         super.insertNewline(sender)
+        onAfterStandardNewline?()
     }
 }
 
@@ -504,6 +506,9 @@ struct RichTextEditor: NSViewRepresentable {
         }
         textView.onNewlineCommand = { [weak controller] in
             return controller?.handleNewline() ?? false
+        }
+        textView.onAfterStandardNewline = { [weak controller] in
+            controller?.resetInlineFormatting()
         }
         textView.onPreviousDay = { onNavigateDay(-1) }
         textView.onNextDay = { onNavigateDay(1) }
@@ -1360,7 +1365,7 @@ final class RichTextEditorController: ObservableObject {
         }
     }
 
-    private func normalizeTypingAttributesAfterListPrefix() {
+    func resetInlineFormatting() {
         guard let textView else { return }
         var attributes = textView.typingAttributes
         let baseFont = (attributes[.font] as? NSFont) ?? textView.font ?? NSFont.systemFont(ofSize: 18)
@@ -1371,6 +1376,10 @@ final class RichTextEditorController: ObservableObject {
         textView.typingAttributes = attributes
     }
 
+    private func normalizeTypingAttributesAfterListPrefix() {
+        resetInlineFormatting()
+    }
+
     func ensureNeutralTypingAttributesIfNeeded(for textView: NSTextView) {
         guard textView.selectedRange.length == 0 else { return }
         guard let textStorage = textView.textStorage else { return }
@@ -1379,14 +1388,22 @@ final class RichTextEditorController: ObservableObject {
         guard string.length > 0 else { return }
         if location > 0 && location <= string.length,
            ListFormatting.isBulletMarker(at: location - 1, in: string) {
-            var attributes = textView.typingAttributes
-            let baseFont = (attributes[.font] as? NSFont) ?? textView.font ?? NSFont.systemFont(ofSize: 18)
-            let fontManager = NSFontManager.shared
-            let nonBold = fontManager.convert(baseFont, toNotHaveTrait: .boldFontMask)
-            let neutralFont = fontManager.convert(nonBold, toNotHaveTrait: .italicFontMask)
-            attributes[.font] = neutralFont
-            textView.typingAttributes = attributes
+            resetInlineFormatting()
+            return
         }
+        if isOnEmptyLine(at: location, in: string) {
+            resetInlineFormatting()
+        }
+    }
+
+    private func isOnEmptyLine(at location: Int, in string: NSString) -> Bool {
+        let atLineStart = location == 0 ||
+            string.character(at: location - 1) == 10 ||
+            string.character(at: location - 1) == 13
+        let atLineEnd = location >= string.length ||
+            string.character(at: location) == 10 ||
+            string.character(at: location) == 13
+        return atLineStart && atLineEnd
     }
 
     func focusEditor() {
