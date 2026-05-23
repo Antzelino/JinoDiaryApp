@@ -15,7 +15,7 @@ A native macOS daily diary application built with SwiftUI. Single-window app wit
 
 ```
 JinoDiaryApp/
-├── CLAUDE.md                         # This file
+├── AGENTS.md                         # This file
 ├── README.md                         # Basic usage docs
 ├── .gitignore
 ├── .gitattributes
